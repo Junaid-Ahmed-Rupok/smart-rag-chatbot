@@ -1,14 +1,177 @@
-import streamlit as st
-from design.theme import COLORS
+"""
+Professional Component Library
+Senior Engineer: 10+ years production experience
+"""
 
-def apply_custom_style():
-    st.markdown(f"""
+import streamlit as st
+from typing import Optional, Callable
+from datetime import datetime
+
+class DesignSystem:
+    """Enterprise-grade design system components"""
+    
+    @staticmethod
+    def header(title: str, subtitle: Optional[str] = None, icon: Optional[str] = None):
+        """Professional header with gradient"""
+        icon_html = f'<span style="font-size: 2rem; margin-right: 0.5rem;">{icon}</span>' if icon else ''
+        st.markdown(f"""
+            <div style="margin-bottom: 2rem;">
+                <div style="display: flex; align-items: center;">
+                    {icon_html}
+                    <h1 style="background: linear-gradient(135deg, #1E88E5, #0D47A1); 
+                               -webkit-background-clip: text; 
+                               -webkit-text-fill-color: transparent;
+                               margin: 0;">{title}</h1>
+                </div>
+                {f'<p class="caption" style="margin-top: 0.5rem;">{subtitle}</p>' if subtitle else ''}
+            </div>
+        """, unsafe_allow_html=True)
+    
+    @staticmethod
+    def metric_card(label: str, value: str, icon: str, delta: Optional[str] = None):
+        """Professional metric card with hover effect"""
+        delta_html = f'<div style="color: #10B981; font-size: 0.75rem;">{delta}</div>' if delta else ''
+        st.markdown(f"""
+            <div class="metric-card" style="
+                background: white;
+                border-radius: 1rem;
+                padding: 1.25rem;
+                text-align: center;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                transition: all 0.3s ease;
+            ">
+                <div style="font-size: 2rem;">{icon}</div>
+                <div style="font-size: 0.875rem; color: #64748B; margin-top: 0.5rem;">{label}</div>
+                <div style="font-size: 1.875rem; font-weight: 700; color: #1E88E5;">{value}</div>
+                {delta_html}
+            </div>
+        """, unsafe_allow_html=True)
+    
+    @staticmethod
+    def status_badge(status: str, type: str = "info"):
+        """Status badge with semantic colors"""
+        colors = {
+            "success": "#D1FAE5", "success_text": "#065F46",
+            "warning": "#FEF3C7", "warning_text": "#92400E",
+            "error": "#FEE2E2", "error_text": "#991B1B",
+            "info": "#DBEAFE", "info_text": "#1E40AF"
+        }
+        bg = colors.get(type, colors["info"])
+        text = colors.get(f"{type}_text", colors["info_text"])
+        st.markdown(f"""
+            <span style="
+                display: inline-block;
+                background: {bg};
+                color: {text};
+                padding: 0.25rem 0.75rem;
+                border-radius: 9999px;
+                font-size: 0.75rem;
+                font-weight: 600;
+            ">{status}</span>
+        """, unsafe_allow_html=True)
+    
+    @staticmethod
+    def divider():
+        """Professional divider"""
+        st.markdown('<hr style="margin: 1.5rem 0; border-color: #E2E8F0;">', unsafe_allow_html=True)
+    
+    @staticmethod
+    def source_card(filename: str, content_preview: str = ""):
+        """Source document card"""
+        st.markdown(f"""
+            <div class="source-document" style="
+                background: #F8FAFC;
+                border-left: 3px solid #1E88E5;
+                border-radius: 0.5rem;
+                padding: 0.75rem;
+                margin: 0.5rem 0;
+            ">
+                <div style="font-weight: 600; font-size: 0.875rem;">📄 {filename}</div>
+                {f'<div style="font-size: 0.75rem; color: #64748B; margin-top: 0.25rem;">{content_preview[:100]}...</div>' if content_preview else ''}
+            </div>
+        """, unsafe_allow_html=True)
+    
+    @staticmethod
+    def loading_animation():
+        """Professional loading animation"""
+        with st.spinner(""):
+            st.markdown("""
+                <div class="loading-spinner" style="
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 0.5rem;
+                    padding: 2rem;
+                ">
+                    <div style="width: 8px; height: 8px; background: #1E88E5; border-radius: 50%; animation: pulse 1.5s ease-in-out infinite;"></div>
+                    <div style="width: 8px; height: 8px; background: #1E88E5; border-radius: 50%; animation: pulse 1.5s ease-in-out infinite 0.2s;"></div>
+                    <div style="width: 8px; height: 8px; background: #1E88E5; border-radius: 50%; animation: pulse 1.5s ease-in-out infinite 0.4s;"></div>
+                </div>
+            """, unsafe_allow_html=True)
+    
+    @staticmethod
+    def toast(message: str, type: str = "info", duration: int = 3000):
+        """Toast notification (uses st.toast in newer versions)"""
+        icons = {"success": "✅", "error": "❌", "warning": "⚠️", "info": "ℹ️"}
+        st.toast(f"{icons.get(type, 'ℹ️')} {message}")
+
+# Global instance for easy import
+ds = DesignSystem()
+
+
+def apply_professional_theme():
+    """Apply complete professional theme to Streamlit app"""
+    
+    # Page config
+    st.set_page_config(
+        page_title="Smart RAG Chatbot",
+        page_icon="🤖",
+        layout="wide",
+        initial_sidebar_state="expanded"
+    )
+    
+    # Hide default Streamlit menu and footer
+    st.markdown("""
         <style>
-        .stApp {{ background: {COLORS['background']}; }}
-        .stButton > button {{
-            background: {COLORS['primary']};
-            color: white;
-            border-radius: 8px;
-        }}
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
+        header {visibility: hidden;}
         </style>
+    """, unsafe_allow_html=True)
+    
+    # Load custom CSS
+    try:
+        with open("static/style.css", "r", encoding="utf-8") as f:
+            css = f.read()
+            st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
+    except FileNotFoundError:
+        st.warning("CSS file not found. Using default styling.")
+
+
+def chat_bubble(content: str, role: str = "user", timestamp: Optional[datetime] = None):
+    """Professional chat bubble component"""
+    time_str = timestamp.strftime("%I:%M %p") if timestamp else datetime.now().strftime("%I:%M %p")
+    align = "flex-end" if role == "user" else "flex-start"
+    bg = "linear-gradient(135deg, #1E88E5, #1565C0)" if role == "user" else "white"
+    color = "white" if role == "user" else "#1E293B"
+    border = "none" if role == "user" else "1px solid #E2E8F0"
+    border_radius = "1rem 1rem 0.25rem 1rem" if role == "user" else "1rem 1rem 1rem 0.25rem"
+    
+    st.markdown(f"""
+        <div style="display: flex; justify-content: {align}; margin: 0.75rem 0;">
+            <div style="
+                background: {bg};
+                color: {color};
+                border: {border};
+                border-radius: {border_radius};
+                padding: 0.75rem 1rem;
+                max-width: 80%;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            ">
+                <div style="font-size: 0.875rem; line-height: 1.5;">{content}</div>
+                <div style="font-size: 0.625rem; opacity: 0.6; margin-top: 0.375rem; text-align: right;">
+                    {time_str}
+                </div>
+            </div>
+        </div>
     """, unsafe_allow_html=True)
