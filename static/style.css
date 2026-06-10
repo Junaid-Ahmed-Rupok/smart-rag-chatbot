@@ -1,177 +1,664 @@
-"""
-Professional Component Library
-Senior Engineer: 10+ years production experience
-"""
+/* ====================================================================
+   SMART RAG CHATBOT - PROFESSIONAL DESIGN SYSTEM v2.0
+   Senior Engineer: 10+ years production experience
+   ==================================================================== */
 
-import streamlit as st
-from typing import Optional, Callable
-from datetime import datetime
+/* --------------------------------------------
+   1. DESIGN TOKENS (Global Variables)
+   -------------------------------------------- */
+:root {
+    /* Primary Brand Colors */
+    --primary-50: #E3F2FD;
+    --primary-100: #BBDEFB;
+    --primary-200: #90CAF9;
+    --primary-300: #64B5F6;
+    --primary-400: #42A5F5;
+    --primary-500: #1E88E5;
+    --primary-600: #1565C0;
+    --primary-700: #0D47A1;
+    --primary-800: #0A3D91;
+    --primary-900: #072C6B;
+    
+    /* Neutral Colors */
+    --gray-50: #F8FAFC;
+    --gray-100: #F1F5F9;
+    --gray-200: #E2E8F0;
+    --gray-300: #CBD5E1;
+    --gray-400: #94A3B8;
+    --gray-500: #64748B;
+    --gray-600: #475569;
+    --gray-700: #334155;
+    --gray-800: #1E293B;
+    --gray-900: #0F172A;
+    
+    /* Semantic Colors */
+    --success: #10B981;
+    --success-dark: #059669;
+    --warning: #F59E0B;
+    --warning-dark: #D97706;
+    --error: #EF4444;
+    --error-dark: #DC2626;
+    --info: #3B82F6;
+    
+    /* Typography */
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'Fira Code', 'JetBrains Mono', 'Courier New', monospace;
+    
+    /* Spacing */
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-5: 1.25rem;
+    --space-6: 1.5rem;
+    --space-8: 2rem;
+    --space-10: 2.5rem;
+    --space-12: 3rem;
+    --space-16: 4rem;
+    
+    /* Shadows */
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    
+    /* Border Radius */
+    --radius-sm: 0.375rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+    --radius-xl: 1rem;
+    --radius-2xl: 1.5rem;
+    --radius-full: 9999px;
+    
+    /* Transitions */
+    --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+}
 
-class DesignSystem:
-    """Enterprise-grade design system components"""
-    
-    @staticmethod
-    def header(title: str, subtitle: Optional[str] = None, icon: Optional[str] = None):
-        """Professional header with gradient"""
-        icon_html = f'<span style="font-size: 2rem; margin-right: 0.5rem;">{icon}</span>' if icon else ''
-        st.markdown(f"""
-            <div style="margin-bottom: 2rem;">
-                <div style="display: flex; align-items: center;">
-                    {icon_html}
-                    <h1 style="background: linear-gradient(135deg, #1E88E5, #0D47A1); 
-                               -webkit-background-clip: text; 
-                               -webkit-text-fill-color: transparent;
-                               margin: 0;">{title}</h1>
-                </div>
-                {f'<p class="caption" style="margin-top: 0.5rem;">{subtitle}</p>' if subtitle else ''}
-            </div>
-        """, unsafe_allow_html=True)
-    
-    @staticmethod
-    def metric_card(label: str, value: str, icon: str, delta: Optional[str] = None):
-        """Professional metric card with hover effect"""
-        delta_html = f'<div style="color: #10B981; font-size: 0.75rem;">{delta}</div>' if delta else ''
-        st.markdown(f"""
-            <div class="metric-card" style="
-                background: white;
-                border-radius: 1rem;
-                padding: 1.25rem;
-                text-align: center;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-                transition: all 0.3s ease;
-            ">
-                <div style="font-size: 2rem;">{icon}</div>
-                <div style="font-size: 0.875rem; color: #64748B; margin-top: 0.5rem;">{label}</div>
-                <div style="font-size: 1.875rem; font-weight: 700; color: #1E88E5;">{value}</div>
-                {delta_html}
-            </div>
-        """, unsafe_allow_html=True)
-    
-    @staticmethod
-    def status_badge(status: str, type: str = "info"):
-        """Status badge with semantic colors"""
-        colors = {
-            "success": "#D1FAE5", "success_text": "#065F46",
-            "warning": "#FEF3C7", "warning_text": "#92400E",
-            "error": "#FEE2E2", "error_text": "#991B1B",
-            "info": "#DBEAFE", "info_text": "#1E40AF"
-        }
-        bg = colors.get(type, colors["info"])
-        text = colors.get(f"{type}_text", colors["info_text"])
-        st.markdown(f"""
-            <span style="
-                display: inline-block;
-                background: {bg};
-                color: {text};
-                padding: 0.25rem 0.75rem;
-                border-radius: 9999px;
-                font-size: 0.75rem;
-                font-weight: 600;
-            ">{status}</span>
-        """, unsafe_allow_html=True)
-    
-    @staticmethod
-    def divider():
-        """Professional divider"""
-        st.markdown('<hr style="margin: 1.5rem 0; border-color: #E2E8F0;">', unsafe_allow_html=True)
-    
-    @staticmethod
-    def source_card(filename: str, content_preview: str = ""):
-        """Source document card"""
-        st.markdown(f"""
-            <div class="source-document" style="
-                background: #F8FAFC;
-                border-left: 3px solid #1E88E5;
-                border-radius: 0.5rem;
-                padding: 0.75rem;
-                margin: 0.5rem 0;
-            ">
-                <div style="font-weight: 600; font-size: 0.875rem;">📄 {filename}</div>
-                {f'<div style="font-size: 0.75rem; color: #64748B; margin-top: 0.25rem;">{content_preview[:100]}...</div>' if content_preview else ''}
-            </div>
-        """, unsafe_allow_html=True)
-    
-    @staticmethod
-    def loading_animation():
-        """Professional loading animation"""
-        with st.spinner(""):
-            st.markdown("""
-                <div class="loading-spinner" style="
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 0.5rem;
-                    padding: 2rem;
-                ">
-                    <div style="width: 8px; height: 8px; background: #1E88E5; border-radius: 50%; animation: pulse 1.5s ease-in-out infinite;"></div>
-                    <div style="width: 8px; height: 8px; background: #1E88E5; border-radius: 50%; animation: pulse 1.5s ease-in-out infinite 0.2s;"></div>
-                    <div style="width: 8px; height: 8px; background: #1E88E5; border-radius: 50%; animation: pulse 1.5s ease-in-out infinite 0.4s;"></div>
-                </div>
-            """, unsafe_allow_html=True)
-    
-    @staticmethod
-    def toast(message: str, type: str = "info", duration: int = 3000):
-        """Toast notification (uses st.toast in newer versions)"""
-        icons = {"success": "✅", "error": "❌", "warning": "⚠️", "info": "ℹ️"}
-        st.toast(f"{icons.get(type, 'ℹ️')} {message}")
+/* --------------------------------------------
+   2. GLOBAL RESET & BASE STYLES
+   -------------------------------------------- */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
 
-# Global instance for easy import
-ds = DesignSystem()
+html {
+    scroll-behavior: smooth;
+}
 
+body {
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.5;
+    color: var(--gray-700);
+    background: linear-gradient(135deg, var(--gray-50) 0%, var(--gray-100) 100%);
+    min-height: 100vh;
+}
 
-def apply_professional_theme():
-    """Apply complete professional theme to Streamlit app"""
-    
-    # Page config
-    st.set_page_config(
-        page_title="Smart RAG Chatbot",
-        page_icon="🤖",
-        layout="wide",
-        initial_sidebar_state="expanded"
-    )
-    
-    # Hide default Streamlit menu and footer
-    st.markdown("""
-        <style>
-        #MainMenu {visibility: hidden;}
-        footer {visibility: hidden;}
-        header {visibility: hidden;}
-        </style>
-    """, unsafe_allow_html=True)
-    
-    # Load custom CSS
-    try:
-        with open("static/style.css", "r", encoding="utf-8") as f:
-            css = f.read()
-            st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
-    except FileNotFoundError:
-        st.warning("CSS file not found. Using default styling.")
+/* --------------------------------------------
+   3. STREAMLIT CUSTOMIZATION
+   -------------------------------------------- */
+/* Main Container */
+.stApp {
+    background: linear-gradient(135deg, var(--gray-50) 0%, var(--gray-100) 100%);
+}
 
+/* Main Content Area */
+.main > div {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--space-6);
+}
 
-def chat_bubble(content: str, role: str = "user", timestamp: Optional[datetime] = None):
-    """Professional chat bubble component"""
-    time_str = timestamp.strftime("%I:%M %p") if timestamp else datetime.now().strftime("%I:%M %p")
-    align = "flex-end" if role == "user" else "flex-start"
-    bg = "linear-gradient(135deg, #1E88E5, #1565C0)" if role == "user" else "white"
-    color = "white" if role == "user" else "#1E293B"
-    border = "none" if role == "user" else "1px solid #E2E8F0"
-    border_radius = "1rem 1rem 0.25rem 1rem" if role == "user" else "1rem 1rem 1rem 0.25rem"
+/* Sidebar */
+.css-1d391kg, [data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #FFFFFF 0%, var(--gray-50) 100%);
+    border-right: 1px solid var(--gray-200);
+    padding: var(--space-6) var(--space-4);
+}
+
+[data-testid="stSidebar"] h1,
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3 {
+    color: var(--primary-600);
+    font-weight: 600;
+    margin-bottom: var(--space-4);
+}
+
+[data-testid="stSidebar"] hr {
+    margin: var(--space-4) 0;
+    border-color: var(--gray-200);
+}
+
+/* --------------------------------------------
+   4. TYPOGRAPHY SYSTEM
+   -------------------------------------------- */
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 700;
+    line-height: 1.2;
+    background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+h1 {
+    font-size: 2.5rem;
+    margin-bottom: var(--space-4);
+    letter-spacing: -0.025em;
+}
+
+h2 {
+    font-size: 1.875rem;
+    margin-bottom: var(--space-3);
+}
+
+h3 {
+    font-size: 1.5rem;
+    margin-bottom: var(--space-3);
+}
+
+/* Caption text */
+.caption {
+    font-size: 0.875rem;
+    color: var(--gray-500);
+    margin-bottom: var(--space-6);
+    border-left: 3px solid var(--primary-500);
+    padding-left: var(--space-4);
+}
+
+/* --------------------------------------------
+   5. BUTTON SYSTEM
+   -------------------------------------------- */
+.stButton > button {
+    background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-600) 100%);
+    color: white;
+    border: none;
+    border-radius: var(--radius-lg);
+    padding: 0.625rem 1.5rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    transition: all var(--transition-base);
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+    width: 100%;
+}
+
+.stButton > button:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+    background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%);
+}
+
+.stButton > button:active {
+    transform: translateY(0);
+}
+
+/* Secondary button style */
+.stButton > button[kind="secondary"] {
+    background: white;
+    color: var(--primary-600);
+    border: 1px solid var(--gray-300);
+}
+
+.stButton > button[kind="secondary"]:hover {
+    background: var(--gray-50);
+    border-color: var(--primary-500);
+}
+
+/* --------------------------------------------
+   6. CHAT INTERFACE
+   -------------------------------------------- */
+[data-testid="stChatMessage"] {
+    animation: slideIn var(--transition-base);
+    margin-bottom: var(--space-4);
+}
+
+/* User Message */
+[data-testid="stChatMessage"][data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {
+    background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-600) 100%);
+    color: white;
+    border-radius: var(--radius-xl) var(--radius-xl) var(--radius-sm) var(--radius-xl);
+    padding: var(--space-3) var(--space-4);
+    box-shadow: var(--shadow-md);
+}
+
+/* Assistant Message */
+[data-testid="stChatMessage"][data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-left: 4px solid var(--primary-500);
+    border-radius: var(--radius-xl) var(--radius-xl) var(--radius-xl) var(--radius-sm);
+    padding: var(--space-3) var(--space-4);
+    box-shadow: var(--shadow-sm);
+}
+
+/* Chat Input */
+[data-testid="stChatInput"] {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    border-top: 1px solid var(--gray-200);
+    padding: var(--space-4);
+    box-shadow: var(--shadow-lg);
+}
+
+[data-testid="stChatInput"] textarea {
+    border-radius: var(--radius-full) !important;
+    border: 1px solid var(--gray-300) !important;
+    padding: 0.75rem 1.5rem !important;
+    font-size: 0.9375rem !important;
+    transition: all var(--transition-fast) !important;
+}
+
+[data-testid="stChatInput"] textarea:focus {
+    border-color: var(--primary-500) !important;
+    box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.1) !important;
+    outline: none !important;
+}
+
+/* --------------------------------------------
+   7. FILE UPLOADER
+   -------------------------------------------- */
+[data-testid="stFileUploader"] {
+    border: 2px dashed var(--gray-300);
+    border-radius: var(--radius-xl);
+    padding: var(--space-6);
+    background: var(--gray-50);
+    transition: all var(--transition-base);
+    cursor: pointer;
+}
+
+[data-testid="stFileUploader"]:hover {
+    border-color: var(--primary-500);
+    background: rgba(30, 136, 229, 0.02);
+}
+
+[data-testid="stFileUploaderDropzone"] {
+    text-align: center;
+    color: var(--gray-600);
+}
+
+/* Uploaded files list */
+[data-testid="stFileUploaderFile"] {
+    background: white;
+    border-radius: var(--radius-md);
+    padding: var(--space-2);
+    margin: var(--space-2) 0;
+    border: 1px solid var(--gray-200);
+}
+
+/* --------------------------------------------
+   8. EXPANDER / ACCORDION
+   -------------------------------------------- */
+.streamlit-expanderHeader {
+    background: white;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--gray-200);
+    font-weight: 600;
+    color: var(--gray-700);
+    transition: all var(--transition-fast);
+}
+
+.streamlit-expanderHeader:hover {
+    background: var(--gray-50);
+    border-color: var(--primary-300);
+}
+
+.streamlit-expanderContent {
+    background: white;
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    border: 1px solid var(--gray-200);
+    border-top: none;
+    padding: var(--space-4);
+}
+
+/* --------------------------------------------
+   9. ALERTS & NOTIFICATIONS
+   -------------------------------------------- */
+[data-testid="stAlert"] {
+    border-radius: var(--radius-lg);
+    border-left: 4px solid;
+    padding: var(--space-4);
+    margin: var(--space-4) 0;
+}
+
+[data-testid="stAlert"][data-baseweb="notification"] {
+    background: white;
+}
+
+/* Success Alert */
+[data-testid="stAlert"]:has(svg[data-testid="icon-check-circle"]) {
+    border-left-color: var(--success);
+}
+
+/* Error Alert */
+[data-testid="stAlert"]:has(svg[data-testid="icon-alert-circle"]) {
+    border-left-color: var(--error);
+}
+
+/* Warning Alert */
+[data-testid="stAlert"]:has(svg[data-testid="icon-alert-triangle"]) {
+    border-left-color: var(--warning);
+}
+
+/* --------------------------------------------
+   10. STATUS WIDGETS (Spinners, Progress)
+   -------------------------------------------- */
+[data-testid="stStatusWidget"] {
+    background: white;
+    border-radius: var(--radius-full);
+    padding: var(--space-2) var(--space-4);
+    box-shadow: var(--shadow-sm);
+}
+
+/* Custom loading animation */
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.loading-spinner {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* --------------------------------------------
+   11. METRICS & CARDS
+   -------------------------------------------- */
+[data-testid="stMetric"] {
+    background: white;
+    border-radius: var(--radius-xl);
+    padding: var(--space-4);
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition-base);
+    border: 1px solid var(--gray-100);
+}
+
+[data-testid="stMetric"]:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--primary-200);
+}
+
+[data-testid="stMetricLabel"] {
+    color: var(--gray-600);
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+[data-testid="stMetricValue"] {
+    color: var(--primary-600);
+    font-size: 2rem;
+    font-weight: 700;
+}
+
+/* --------------------------------------------
+   12. TAB SYSTEM
+   -------------------------------------------- */
+.stTabs [data-baseweb="tab-list"] {
+    gap: var(--space-2);
+    background: var(--gray-100);
+    padding: var(--space-1);
+    border-radius: var(--radius-lg);
+}
+
+.stTabs [data-baseweb="tab"] {
+    border-radius: var(--radius-md);
+    padding: var(--space-2) var(--space-4);
+    font-weight: 500;
+    transition: all var(--transition-fast);
+}
+
+.stTabs [data-baseweb="tab"][aria-selected="true"] {
+    background: white;
+    color: var(--primary-600);
+    box-shadow: var(--shadow-sm);
+}
+
+/* --------------------------------------------
+   13. SELECT BOX & INPUTS
+   -------------------------------------------- */
+[data-testid="stSelectbox"] > div {
+    border-radius: var(--radius-md);
+}
+
+[data-testid="stSelectbox"] label {
+    font-weight: 500;
+    color: var(--gray-700);
+}
+
+[data-testid="stTextInput"] input {
+    border-radius: var(--radius-md);
+    border: 1px solid var(--gray-300);
+    padding: 0.625rem 1rem;
+}
+
+[data-testid="stTextInput"] input:focus {
+    border-color: var(--primary-500);
+    box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.1);
+}
+
+/* --------------------------------------------
+   14. CODE BLOCKS
+   -------------------------------------------- */
+pre, code {
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    background: var(--gray-900);
+    color: var(--gray-100);
+    border-radius: var(--radius-md);
+    padding: var(--space-3);
+    overflow-x: auto;
+}
+
+/* --------------------------------------------
+   15. ANIMATIONS
+   -------------------------------------------- */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.fade-in {
+    animation: fadeIn var(--transition-base);
+}
+
+.slide-in {
+    animation: slideIn var(--transition-base);
+}
+
+/* --------------------------------------------
+   16. RESPONSIVE DESIGN
+   -------------------------------------------- */
+@media (max-width: 768px) {
+    h1 { font-size: 1.875rem; }
+    h2 { font-size: 1.5rem; }
+    h3 { font-size: 1.25rem; }
     
-    st.markdown(f"""
-        <div style="display: flex; justify-content: {align}; margin: 0.75rem 0;">
-            <div style="
-                background: {bg};
-                color: {color};
-                border: {border};
-                border-radius: {border_radius};
-                padding: 0.75rem 1rem;
-                max-width: 80%;
-                box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-            ">
-                <div style="font-size: 0.875rem; line-height: 1.5;">{content}</div>
-                <div style="font-size: 0.625rem; opacity: 0.6; margin-top: 0.375rem; text-align: right;">
-                    {time_str}
-                </div>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
+    .main > div {
+        padding: var(--space-4);
+    }
+    
+    [data-testid="stChatMessage"] {
+        max-width: 95%;
+    }
+    
+    [data-testid="stMetricValue"] {
+        font-size: 1.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .stButton > button {
+        padding: 0.5rem 1rem;
+        font-size: 0.8125rem;
+    }
+    
+    [data-testid="stChatInput"] textarea {
+        font-size: 0.875rem !important;
+    }
+}
+
+/* --------------------------------------------
+   17. PRINT STYLES
+   -------------------------------------------- */
+@media print {
+    [data-testid="stSidebar"],
+    [data-testid="stChatInput"],
+    .stButton {
+        display: none;
+    }
+    
+    .stApp {
+        background: white;
+    }
+    
+    [data-testid="stChatMessage"] {
+        break-inside: avoid;
+        box-shadow: none;
+        border: 1px solid var(--gray-300);
+    }
+}
+
+/* --------------------------------------------
+   18. CUSTOM COMPONENTS
+   -------------------------------------------- */
+/* Source Document Card */
+.source-document {
+    background: var(--gray-50);
+    border-left: 3px solid var(--primary-500);
+    border-radius: var(--radius-md);
+    padding: var(--space-3);
+    margin: var(--space-2) 0;
+    font-size: 0.8125rem;
+    font-family: var(--font-mono);
+}
+
+.source-document:hover {
+    background: white;
+    box-shadow: var(--shadow-sm);
+}
+
+/* Tag/Badge */
+.tag {
+    display: inline-block;
+    background: var(--primary-100);
+    color: var(--primary-700);
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.tag-success {
+    background: #D1FAE5;
+    color: #065F46;
+}
+
+.tag-warning {
+    background: #FEF3C7;
+    color: #92400E;
+}
+
+/* Tooltip */
+.tooltip {
+    position: relative;
+    cursor: help;
+}
+
+.tooltip:hover::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--gray-900);
+    color: white;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    font-size: 0.75rem;
+    white-space: nowrap;
+    z-index: 1000;
+}
+
+/* --------------------------------------------
+   19. DARK MODE SUPPORT (Optional)
+   -------------------------------------------- */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --gray-50: #1E293B;
+        --gray-100: #334155;
+        --gray-200: #475569;
+        --gray-300: #64748B;
+        --gray-700: #CBD5E1;
+        --gray-800: #E2E8F0;
+    }
+    
+    body {
+        background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+    }
+    
+    [data-testid="stChatMessage"][data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) {
+        background: #1E293B;
+        border-color: #334155;
+    }
+}
+
+/* --------------------------------------------
+   20. UTILITY CLASSES
+   -------------------------------------------- */
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+.text-left { text-align: left; }
+
+.mt-1 { margin-top: var(--space-1); }
+.mt-2 { margin-top: var(--space-2); }
+.mt-4 { margin-top: var(--space-4); }
+.mt-6 { margin-top: var(--space-6); }
+
+.mb-1 { margin-bottom: var(--space-1); }
+.mb-2 { margin-bottom: var(--space-2); }
+.mb-4 { margin-bottom: var(--space-4); }
+.mb-6 { margin-bottom: var(--space-6); }
+
+.p-4 { padding: var(--space-4); }
+.p-6 { padding: var(--space-6); }
+
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap-2 { gap: var(--space-2); }
+.gap-4 { gap: var(--space-4); }
