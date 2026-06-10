@@ -1,21 +1,22 @@
 """
 Smart RAG Chatbot - Main Application
-Senior Engineer: Production-grade RAG implementation with professional design
+FREE Local LLM Version with Ollama - No API Key Required!
+Senior Engineer: Production-grade RAG with 100% local processing
 """
 
 import streamlit as st
-import os
+import subprocess
 from datetime import datetime
 from typing import List, Dict, Any
 
 # Import configuration
 from Config import APP_NAME, APP_ICON, DEBUG
 
-# Import RAG pipeline
+# Import RAG pipeline (FREE version)
 from Rag import get_rag_pipeline, init_rag, RAGPipeline
 
 # Import design components
-from design.components import apply_professional_theme, ds, chat_bubble
+from design.components import apply_professional_theme, ds
 
 # ============================================================================
 # PAGE CONFIGURATION
@@ -32,6 +33,42 @@ if "processed_files" not in st.session_state:
     st.session_state.processed_files = set()
 if "uploaded_files" not in st.session_state:
     st.session_state.uploaded_files = []
+if "ollama_connected" not in st.session_state:
+    st.session_state.ollama_connected = False
+
+# ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
+
+def check_ollama() -> tuple[bool, str]:
+    """Check if Ollama is running and available"""
+    try:
+        import requests
+        response = requests.get("http://localhost:11434/api/tags", timeout=3)
+        if response.status_code == 200:
+            models = response.json().get("models", [])
+            if models:
+                model_names = [m.get("name", "").split(":")[0] for m in models]
+                return True, model_names
+            else:
+                return True, ["No models found. Run 'ollama pull mistral'"]
+        return False, []
+    except requests.exceptions.ConnectionError:
+        return False, []
+    except Exception as e:
+        return False, [str(e)]
+
+def get_installed_models() -> List[str]:
+    """Get list of installed Ollama models"""
+    try:
+        import requests
+        response = requests.get("http://localhost:11434/api/tags", timeout=3)
+        if response.status_code == 200:
+            models = response.json().get("models", [])
+            return [m.get("name", "").split(":")[0] for m in models]
+    except:
+        pass
+    return []
 
 # ============================================================================
 # HEADER SECTION
@@ -39,7 +76,7 @@ if "uploaded_files" not in st.session_state:
 
 ds.header(
     title=APP_NAME,
-    subtitle="Enterprise-grade Retrieval-Augmented Generation Chatbot with Professional Design System",
+    subtitle="FREE Local LLM - No API Key Required! Powered by Ollama",
     icon=APP_ICON
 )
 
@@ -50,288 +87,66 @@ ds.header(
 with st.sidebar:
     ds.header("⚙️ Configuration", "", "⚙️")
     
-    # API Settings
-    with st.expander("🔑 API Settings", expanded=True):
-        api_key = st.text_input(
-            "OpenAI API Key", 
-            type="password", 
-            placeholder="sk-...",
-            help="Enter your OpenAI API key. Get one from platform.openai.com"
-        )
-        
-        model = st.selectbox(
-            "Select Model",
-            ["gpt-4", "gpt-3.5-turbo"],
-            index=1,
-            help="GPT-4 is more accurate but slower. GPT-3.5-turbo is faster and cheaper"
-        )
-        
-        if api_key:
-            os.environ["OPENAI_API_KEY"] = api_key
-            ds.status_badge("API Connected", "success")
-        else:
-            ds.status_badge("API Required", "warning")
-    
-    ds.divider()
-    
-    # Document Upload Section
-    with st.expander("📄 Document Management", expanded=True):
+    # Ollama Connection Status
+    with st.expander("🆓 Local LLM Settings (FREE)", expanded=True):
         st.markdown("""
-            <div style="font-size: 0.875rem; color: #64748B; margin-bottom: 0.5rem;">
-                Upload PDF, DOCX, or TXT files
+            <div style="
+                background: linear-gradient(135deg, #10B98120, #05966920);
+                border-radius: 0.5rem;
+                padding: 0.75rem;
+                margin-bottom: 1rem;
+            ">
+                <div style="font-size: 0.875rem; font-weight: 600; color: #10B981;">✨ 100% FREE</div>
+                <div style="font-size: 0.75rem; color: #047857;">No API Key • No Credit Card • No Internet Required</div>
             </div>
         """, unsafe_allow_html=True)
         
-        uploaded_files = st.file_uploader(
-            "Choose files",
-            type=["pdf", "docx", "txt"],
-            accept_multiple_files=True,
-            label_visibility="collapsed"
-        )
+        # Check Ollama status
+        ollama_ok, models_data = check_ollama()
         
-        if uploaded_files:
-            new_files = [f for f in uploaded_files if f.name not in st.session_state.processed_files]
-            
-            if new_files:
-                ds.status_badge(f"{len(new_files)} new file(s) ready", "info")
+        if ollama_ok:
+            installed_models = get_installed_models()
+            if installed_models:
+                st.session_state.ollama_connected = True
+                st.success(f"✅ Ollama connected! ({len(installed_models)} model(s) found)")
                 
-                if st.button("📚 Process Documents", use_container_width=True, type="primary"):
-                    if not api_key:
-                        st.error("❌ Please enter your OpenAI API key first")
-                    else:
-                        try:
-                            pipeline = get_rag_pipeline(api_key, model)
-                            with st.spinner("Processing documents..."):
-                                num_chunks = pipeline.process_documents(new_files)
-                                for f in new_files:
-                                    st.session_state.processed_files.add(f.name)
-                            st.success(f"✅ Processed {len(new_files)} files into {num_chunks} chunks!")
-                            ds.toast("Documents processed successfully", "success")
-                        except Exception as e:
-                            st.error(f"❌ Error processing documents: {e}")
+                # Model selection
+                model_name = st.selectbox(
+                    "Select Model",
+                    installed_models,
+                    help="Choose a model you've downloaded with Ollama"
+                )
+            else:
+                st.session_state.ollama_connected = False
+                st.warning("⚠️ No models found. Install a model:")
+                st.code("ollama pull mistral", language="bash")
+                model_name = "mistral"
+        else:
+            st.session_state.ollama_connected = False
+            st.error("❌ Ollama not running!")
+            st.markdown("**Install and start Ollama:**")
+            st.code("""
+# 1. Download from https://ollama.ai
+# 2. Install the application
+# 3. Open terminal and run:
+ollama serve
             
-            # Show processed files
-            if st.session_state.processed_files:
-                st.markdown("---")
-                st.markdown("**📚 Indexed Documents:**")
-                for file in st.session_state.processed_files:
-                    st.markdown(f"   • {file}")
-    
-    ds.divider()
-    
-    # System Status
-    st.markdown("### 📊 System Status")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        ds.metric_card(
-            "Documents", 
-            str(len(st.session_state.processed_files)), 
-            "📄",
-            "indexed"
-        )
-    with col2:
-        messages_count = len([m for m in st.session_state.messages if m["role"] == "user"])
-        ds.metric_card("Conversations", str(messages_count), "💬", "total")
-    
-    ds.divider()
-    
-    # Actions
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("🗑️ Clear Chat", use_container_width=True):
-            st.session_state.messages = []
-            if st.session_state.rag_pipeline:
-                st.session_state.rag_pipeline.chain = None
-            ds.toast("Chat history cleared", "success")
-            st.rerun()
-    
-    with col2:
-        if st.button("🔄 Reset All", use_container_width=True):
-            st.session_state.messages = []
-            st.session_state.processed_files = set()
-            st.session_state.rag_pipeline = None
-            ds.toast("All data reset", "info")
-            st.rerun()
-    
-    # Footer
-    st.markdown("---")
-    st.caption("⚡ Powered by RAG Architecture")
-    st.caption("🎨 Professional Design System v2.0")
-    st.caption("🔒 Enterprise Security Ready")
-
-# ============================================================================
-# MAIN CHAT AREA
-# ============================================================================
-
-# Chat header with stats
-if st.session_state.messages:
-    chat_stats = f"💬 {len(st.session_state.messages)} messages"
-    if st.session_state.processed_files:
-        chat_stats += f" • 📚 {len(st.session_state.processed_files)} documents"
-    st.caption(chat_stats)
-
-# Display chat history
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+# 4. In another terminal, download a model:
+ollama pull mistral
+            """, language="bash")
+            model_name = "mistral"
         
-        # Show sources for assistant messages
-        if message["role"] == "assistant" and "sources" in message and message["sources"]:
-            with st.expander("📎 Sources", expanded=False):
-                for src in message["sources"]:
-                    ds.source_card(src)
+        st.divider()
         
-        # Show timestamp
-        if "timestamp" in message:
-            st.caption(f"_{message['timestamp']}_")
-
-# ============================================================================
-# CHAT INPUT SECTION
-# ============================================================================
-
-# Check if API key is provided
-if not api_key:
-    st.info("🔑 **Please enter your OpenAI API key in the sidebar to start chatting**")
-    st.stop()
-
-# Check if documents are loaded
-docs_loaded = len(st.session_state.processed_files) > 0
-if not docs_loaded:
-    st.info("📄 **Upload and process documents in the sidebar to ask questions about them**")
-    st.warning("⚠️ Without documents, I can only answer general questions (no RAG context)")
-
-# Chat input
-placeholder = "Ask me anything about your documents..." if docs_loaded else "Ask me a general question... (upload documents for RAG context)"
-prompt = st.chat_input(placeholder)
-
-if prompt:
-    # Add user message to history
-    st.session_state.messages.append({
-        "role": "user", 
-        "content": prompt,
-        "timestamp": datetime.now().strftime("%I:%M %p")
-    })
-    
-    # Display user message
-    with st.chat_message("user"):
-        st.markdown(prompt)
-    
-    # Generate assistant response
-    with st.chat_message("assistant"):
-        try:
-            # Get RAG pipeline
-            pipeline = get_rag_pipeline(api_key, model)
+        # Model info
+        with st.expander("ℹ️ About Ollama Models", expanded=False):
+            st.markdown("""
+            **Recommended Models:**
+            - `mistral` - 4GB, very good quality (⭐ recommended)
+            - `llama3` - 4.6GB, excellent quality
+            - `phi3` - 2.3GB, lightweight & fast
+            - `gemma:2b` - 1.6GB, fastest
             
-            # Process any pending documents
-            if uploaded_files:
-                new_files = [f for f in uploaded_files if f.name not in st.session_state.processed_files]
-                if new_files:
-                    with st.spinner("Processing documents..."):
-                        pipeline.process_documents(new_files)
-                        for f in new_files:
-                            st.session_state.processed_files.add(f.name)
-            
-            # Generate response
-            with st.spinner("🤔 Thinking and retrieving relevant information..."):
-                if docs_loaded:
-                    # RAG-enabled response
-                    result = pipeline.ask(prompt)
-                    answer = result["answer"]
-                    sources = result["sources"]
-                    
-                    st.markdown(answer)
-                    
-                    if sources:
-                        with st.expander("📎 Sources", expanded=False):
-                            for src in sources:
-                                ds.source_card(src)
-                else:
-                    # General response without RAG
-                    from langchain_openai import ChatOpenAI
-                    from langchain.chains import ConversationChain
-                    from langchain.memory import ConversationBufferMemory
-                    
-                    llm = ChatOpenAI(model=model, temperature=0.7, api_key=api_key)
-                    memory = ConversationBufferMemory()
-                    chain = ConversationChain(llm=llm, memory=memory)
-                    answer = chain.predict(input=prompt)
-                    
-                    st.markdown(answer)
-                    sources = []
-            
-            # Add assistant message to history
-            st.session_state.messages.append({
-                "role": "assistant",
-                "content": answer,
-                "sources": sources,
-                "timestamp": datetime.now().strftime("%I:%M %p")
-            })
-            
-        except Exception as e:
-            error_msg = f"❌ **Error:** {str(e)}"
-            if "api_key" in str(e).lower():
-                error_msg += "\n\nPlease check your OpenAI API key in the sidebar."
-            elif "rate limit" in str(e).lower():
-                error_msg += "\n\nYou've hit the rate limit. Please wait a moment and try again."
-            
-            st.error(error_msg)
-            
-            # Add error message to history
-            st.session_state.messages.append({
-                "role": "assistant",
-                "content": error_msg,
-                "sources": [],
-                "timestamp": datetime.now().strftime("%I:%M %p")
-            })
-
-# ============================================================================
-# FOOTER
-# ============================================================================
-
-st.markdown("---")
-
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.caption("🎯 **Features**")
-    st.caption("• Document Q&A (PDF, DOCX, TXT)")
-    st.caption("• Source attribution")
-    st.caption("• Conversation memory")
-
-with col2:
-    st.caption("⚡ **Tech Stack**")
-    st.caption("• Streamlit + LangChain")
-    st.caption("• OpenAI GPT + Embeddings")
-    st.caption("• FAISS Vector Database")
-
-with col3:
-    st.caption("📊 **Status**")
-    if api_key:
-        st.caption("✅ API: Connected")
-    else:
-        st.caption("⚠️ API: Not connected")
-    st.caption(f"📚 Documents: {len(st.session_state.processed_files)}")
-    st.caption(f"💬 Messages: {len(st.session_state.messages)}")
-
-st.markdown(
-    """
-    <div style="text-align: center; padding: 1rem; color: #64748B; font-size: 0.75rem;">
-        Built with ❤️ using Professional Design System | Enterprise Ready | Production Grade
-    </div>
-    """, 
-    unsafe_allow_html=True
-)
-
-# ============================================================================
-# HELPER FUNCTIONS
-# ============================================================================
-
-def check_health():
-    """Health check for monitoring"""
-    return {
-        "status": "healthy",
-        "documents_loaded": len(st.session_state.processed_files),
-        "messages_count": len(st.session_state.messages),
-        "api_configured": bool(api_key)
-    }
+            **Install a model:**
+            ```bash
+            ollama pull mistral
