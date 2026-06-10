@@ -1,6 +1,6 @@
 """
-RAG Pipeline - Production Grade Implementation
-Senior Engineer: Complete RAG system
+RAG Pipeline - FREE Local LLM Version (Ollama)
+No API key needed - Runs entirely on your laptop
 """
 
 import os
@@ -13,21 +13,40 @@ import streamlit as st
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader, Docx2txtLoader, TextLoader
 from langchain_community.vectorstores import FAISS
-from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+from langchain_community.embeddings import OllamaEmbeddings
+from langchain_community.llms import Ollama
 from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferWindowMemory
 
 from Config import CHUNK_SIZE, CHUNK_OVERLAP, RETRIEVAL_K
 
 class RAGPipeline:
-    """Complete RAG implementation"""
+    """Complete RAG implementation - FREE with Ollama"""
     
-    def __init__(self, api_key: str, model: str = "gpt-3.5-turbo"):
-        self.api_key = api_key
-        self.model = model
+    def __init__(self, model_name: str = "mistral"):
+        self.model_name = model_name
         self.vector_store = None
         self.chain = None
         self.processed_files = set()
+        self.embeddings = None
+        self.llm = None
+        
+    def check_ollama(self) -> bool:
+        """Check if Ollama is running"""
+        try:
+            import requests
+            response = requests.get("http://localhost:11434/api/tags")
+            return response.status_code == 200
+        except:
+            return False
+    
+    def init_models(self):
+        """Initialize Ollama models"""
+        if self.embeddings is None:
+            self.embeddings = OllamaEmbeddings(model=self.model_name)
+        if self.llm is None:
+            self.llm = Ollama(model=self.model_name, temperature=0.2)
+        return True
         
     def process_documents(self, files: List) -> int:
         """Process uploaded documents and create vector store"""
@@ -48,31 +67,25 @@ class RAGPipeline:
         )
         
         for file in files:
-            # Skip already processed files
             if file.name in self.processed_files:
                 continue
                 
-            # Get file extension
             suffix = Path(file.name).suffix.lower()
             if suffix not in loaders:
-                st.warning(f"Skipping {file.name} - unsupported format")
+                st.warning(f"Skipping {file.name}")
                 continue
             
-            # Save uploaded file temporarily
             with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
                 tmp.write(file.read())
                 tmp_path = tmp.name
             
             try:
-                # Load document
                 loader = loaders[suffix](tmp_path)
                 docs = loader.load()
                 
-                # Add source metadata
                 for doc in docs:
                     doc.metadata["source"] = file.name
                 
-                # Split into chunks
                 chunks = splitter.split_documents(docs)
                 all_chunks.extend(chunks)
                 self.processed_files.add(file.name)
@@ -85,17 +98,14 @@ class RAGPipeline:
         if not all_chunks:
             raise ValueError("No valid documents processed")
         
-        # Create or update vector store
-        embeddings = OpenAIEmbeddings(api_key=self.api_key)
+        self.init_models()
         
         if self.vector_store is None:
-            self.vector_store = FAISS.from_documents(all_chunks, embeddings)
+            self.vector_store = FAISS.from_documents(all_chunks, self.embeddings)
         else:
             self.vector_store.add_documents(all_chunks)
         
-        # Reset chain (will be rebuilt with new retriever)
         self.chain = None
-        
         return len(all_chunks)
     
     def get_chain(self):
@@ -104,39 +114,28 @@ class RAGPipeline:
             return self.chain
         
         if self.vector_store is None:
-            raise ValueError("No documents loaded. Upload documents first.")
+            raise ValueError("No documents loaded")
         
-        # Create retriever with MMR search
+        self.init_models()
+        
         retriever = self.vector_store.as_retriever(
-            search_type="mmr",  # Maximum Marginal Relevance for diversity
-            search_kwargs={
-                "k": RETRIEVAL_K,
-                "fetch_k": RETRIEVAL_K * 2
-            }
+            search_type="mmr",
+            search_kwargs={"k": RETRIEVAL_K, "fetch_k": RETRIEVAL_K * 2}
         )
         
-        # Create LLM
-        llm = ChatOpenAI(
-            model=self.model,
-            temperature=0.2,
-            api_key=self.api_key
-        )
-        
-        # Create memory for conversation
         memory = ConversationBufferWindowMemory(
-            k=5,  # Remember last 5 exchanges
+            k=5,
             memory_key="chat_history",
             return_messages=True,
             output_key="answer"
         )
         
-        # Create chain
         self.chain = ConversationalRetrievalChain.from_llm(
-            llm=llm,
+            llm=self.llm,
             retriever=retriever,
             memory=memory,
             return_source_documents=True,
-            verbose=True
+            verbose=False
         )
         
         return self.chain
@@ -146,7 +145,6 @@ class RAGPipeline:
         chain = self.get_chain()
         result = chain.invoke({"question": question})
         
-        # Extract sources
         sources = []
         for doc in result.get("source_documents", []):
             source = doc.metadata.get("source", "unknown")
@@ -155,8 +153,7 @@ class RAGPipeline:
         
         return {
             "answer": result["answer"],
-            "sources": sources,
-            "chat_history": result.get("chat_history", [])
+            "sources": sources
         }
     
     def clear(self):
@@ -165,15 +162,13 @@ class RAGPipeline:
         self.chain = None
         self.processed_files = set()
 
-# Initialize session state for RAG
 def init_rag():
     if "rag_pipeline" not in st.session_state:
         st.session_state.rag_pipeline = None
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-def get_rag_pipeline(api_key: str, model: str) -> RAGPipeline:
-    """Get or create RAG pipeline instance"""
+def get_rag_pipeline(model_name: str = "mistral") -> RAGPipeline:
     if st.session_state.rag_pipeline is None:
-        st.session_state.rag_pipeline = RAGPipeline(api_key, model)
+        st.session_state.rag_pipeline = RAGPipeline(model_name)
     return st.session_state.rag_pipeline
