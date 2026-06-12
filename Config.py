@@ -1,264 +1,152 @@
 """
-Smart RAG Chatbot - Configuration File
-FREE Local LLM Version - No API Key Required!
-Senior Engineer: Centralized configuration management
+settings.py — single source of truth for all app configuration.
+Import: from settings import cfg, AVAILABLE_MODELS, SUPPORTED_EXTENSIONS
 """
 
 import os
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List
+from typing import List
+
 from dotenv import load_dotenv
 
-# Load environment variables from .env file (optional)
-load_dotenv()
+load_dotenv(override=False)
 
-# ============================================================================
-# APP CONFIGURATION
-# ============================================================================
 
-APP_NAME = "Smart RAG Chatbot"
-APP_ICON = "🤖"
-APP_VERSION = "2.0.0"
-APP_DESCRIPTION = "Enterprise-grade RAG Chatbot - FREE Local LLM with Ollama"
-DEBUG = os.getenv("DEBUG", "False").lower() == "true"
+# ── Constants (never change at runtime) ──────────────────────────────────────
 
-# ============================================================================
-# OLLAMA CONFIGURATION (FREE - No API Key!)
-# ============================================================================
+APP_NAME        = "Smart RAG Chatbot"
+APP_ICON        = "🤖"
+APP_VERSION     = "2.0.0"
 
-# Ollama Settings
-OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "mistral")  # mistral, llama3, phi3, gemma:2b
 AVAILABLE_MODELS: List[str] = [
-    "mistral",      # 4GB - Very good, recommended
-    "llama3",       # 4.6GB - Excellent quality
-    "phi3",         # 2.3GB - Lightweight & fast
-    "gemma:2b",     # 1.6GB - Fastest
-    "llama2",       # 3.8GB - Stable
-    "codellama"     # 3.8GB - Good for code
+    "mistral",    # 4.0 GB — recommended
+    "llama3",     # 4.6 GB — best quality
+    "phi3",       # 2.3 GB — lightweight
+    "gemma:2b",   # 1.6 GB — fastest
+    "llama2",     # 3.8 GB — stable
+    "codellama",  # 3.8 GB — code-focused
 ]
 
-# LLM Parameters
-TEMPERATURE = float(os.getenv("TEMPERATURE", "0.2"))
-TOP_P = float(os.getenv("TOP_P", "0.95"))
-REPEAT_PENALTY = float(os.getenv("REPEAT_PENALTY", "1.1"))
-
-# ============================================================================
-# RAG CONFIGURATION
-# ============================================================================
-
-# Text Splitting
-CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "1000"))
-CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "200"))
-CHUNK_SEPARATORS = ["\n\n", "\n", " ", ""]
-
-# Retrieval Settings
-RETRIEVAL_K = int(os.getenv("RETRIEVAL_K", "4"))
-RETRIEVAL_FETCH_K = int(os.getenv("RETRIEVAL_FETCH_K", "8"))
-SEARCH_TYPE = os.getenv("SEARCH_TYPE", "mmr")  # "similarity" or "mmr"
-MMR_LAMBDA = float(os.getenv("MMR_LAMBDA", "0.5"))
-
-# Memory Settings
-CONVERSATION_MEMORY_LENGTH = int(os.getenv("CONVERSATION_MEMORY_LENGTH", "10"))
-MEMORY_KEY = "chat_history"
-OUTPUT_KEY = "answer"
-
-# ============================================================================
-# FILE CONFIGURATION
-# ============================================================================
-
-# Supported File Types
-SUPPORTED_FILE_TYPES: Dict[str, List[str]] = {
-    "document": [".pdf", ".docx", ".txt"],
-}
-SUPPORTED_EXTENSIONS = [ext for exts in SUPPORTED_FILE_TYPES.values() for ext in exts]
-
-# File Size Limits (in MB)
-MAX_UPLOAD_SIZE_MB = int(os.getenv("MAX_UPLOAD_SIZE_MB", "200"))
-MAX_UPLOAD_SIZE_BYTES = MAX_UPLOAD_SIZE_MB * 1024 * 1024
-
-# Vector Store Configuration
-VECTOR_STORE_TYPE = os.getenv("VECTOR_STORE_TYPE", "faiss")
-VECTOR_STORE_PATH = Path(os.getenv("VECTOR_STORE_PATH", "./data/vector_store"))
-VECTOR_STORE_PATH.mkdir(parents=True, exist_ok=True)
-
-# Data Paths
-DATA_PATH = Path("./data")
-RAW_DATA_PATH = DATA_PATH / "raw"
-PROCESSED_DATA_PATH = DATA_PATH / "processed"
-LOGS_PATH = Path("./logs")
-
-# Create directories
-for path in [DATA_PATH, RAW_DATA_PATH, PROCESSED_DATA_PATH, LOGS_PATH]:
-    path.mkdir(parents=True, exist_ok=True)
-
-# ============================================================================
-# UI CONFIGURATION
-# ============================================================================
-
-# Theme Colors (matches CSS design tokens)
-THEME = {
-    "primary": "#1E88E5",
-    "primary_dark": "#0D47A1",
-    "primary_light": "#42A5F5",
-    "secondary": "#FF6B6B",
-    "success": "#10B981",
-    "warning": "#F59E0B",
-    "error": "#EF4444",
-    "info": "#3B82F6",
-    "background": "#F5F7FA",
-    "surface": "#FFFFFF",
-    "text_primary": "#1E293B",
-    "text_secondary": "#64748B",
-    "border": "#E2E8F0"
-}
-
-# Layout Settings
-LAYOUT = {
-    "sidebar_width": 320,
-    "max_content_width": 1200,
-    "chat_max_width": 800
-}
-
-# ============================================================================
-# SESSION STATE KEYS
-# ============================================================================
+SUPPORTED_EXTENSIONS: List[str] = [".pdf", ".docx", ".txt"]
 
 SESSION_KEYS = {
-    "messages": "chat_messages",
-    "rag_pipeline": "rag_pipeline_instance",
+    "messages":        "chat_messages",
+    "rag_pipeline":    "rag_pipeline_instance",
     "processed_files": "processed_documents_set",
-    "vector_store": "vector_store_instance",
-    "uploaded_files": "uploaded_files_list",
-    "chain": "conversation_chain",
-    "ollama_connected": "ollama_connection_status"
+    "vector_store":    "vector_store_instance",
+    "uploaded_files":  "uploaded_files_list",
+    "chain":           "conversation_chain",
+    "ollama_status":   "ollama_connection_status",
 }
 
-# ============================================================================
-# VALIDATION FUNCTIONS
-# ============================================================================
 
-def validate_config() -> Dict[str, bool]:
-    """Validate configuration settings"""
-    validation = {
-        "chunk_size_valid": 100 <= CHUNK_SIZE <= 5000,
-        "chunk_overlap_valid": 0 <= CHUNK_OVERLAP <= CHUNK_SIZE,
-        "retrieval_k_valid": 1 <= RETRIEVAL_K <= 20,
-        "temperature_valid": 0 <= TEMPERATURE <= 2,
-        "data_path_writable": DATA_PATH.exists() and os.access(DATA_PATH, os.W_OK),
-        "vector_store_writable": VECTOR_STORE_PATH.exists() and os.access(VECTOR_STORE_PATH, os.W_OK),
-    }
-    return validation
+# ── Config dataclass ──────────────────────────────────────────────────────────
 
-def get_config_summary() -> Dict[str, any]:
-    """Get configuration summary for display"""
-    return {
-        "app_name": APP_NAME,
-        "app_version": APP_VERSION,
-        "debug_mode": DEBUG,
-        "model": DEFAULT_MODEL,
-        "ollama_host": OLLAMA_HOST,
-        "chunk_size": CHUNK_SIZE,
-        "retrieval_k": RETRIEVAL_K,
-        "temperature": TEMPERATURE,
-        "supported_file_types": SUPPORTED_EXTENSIONS,
-        "vector_store_path": str(VECTOR_STORE_PATH),
-        "memory_length": CONVERSATION_MEMORY_LENGTH
-    }
+def _bool(key: str, default: str = "False") -> bool:
+    return os.getenv(key, default).lower() == "true"
 
-def is_ready() -> bool:
-    """Check if app is ready to run"""
-    validations = validate_config()
-    return validations["data_path_writable"]
+def _int(key: str, default: str) -> int:
+    return int(os.getenv(key, default))
 
-# ============================================================================
-# HELPER FUNCTIONS
-# ============================================================================
+def _float(key: str, default: str) -> float:
+    return float(os.getenv(key, default))
 
-def get_file_size_limit_mb() -> int:
-    """Get max file upload size in MB"""
-    return MAX_UPLOAD_SIZE_MB
+def _path(key: str, default: str) -> Path:
+    return Path(os.getenv(key, default))
 
-def get_supported_extensions() -> List[str]:
-    """Get list of supported file extensions"""
-    return SUPPORTED_EXTENSIONS
 
-def get_chunk_config() -> Dict[str, int]:
-    """Get text chunking configuration"""
-    return {
-        "chunk_size": CHUNK_SIZE,
-        "chunk_overlap": CHUNK_OVERLAP
-    }
+@dataclass(frozen=True)
+class Settings:
+    # App
+    debug: bool = field(default_factory=lambda: _bool("DEBUG"))
 
-def get_retrieval_config() -> Dict[str, any]:
-    """Get retrieval configuration"""
-    return {
-        "k": RETRIEVAL_K,
-        "fetch_k": RETRIEVAL_FETCH_K,
-        "search_type": SEARCH_TYPE,
-        "mmr_lambda": MMR_LAMBDA
-    }
+    # Ollama
+    ollama_host:    str   = field(default_factory=lambda: os.getenv("OLLAMA_HOST", "http://localhost:11434"))
+    default_model:  str   = field(default_factory=lambda: os.getenv("DEFAULT_MODEL", "mistral"))
+    temperature:    float = field(default_factory=lambda: _float("TEMPERATURE", "0.2"))
+    top_p:          float = field(default_factory=lambda: _float("TOP_P", "0.95"))
+    repeat_penalty: float = field(default_factory=lambda: _float("REPEAT_PENALTY", "1.1"))
 
-# ============================================================================
-# ENVIRONMENT SPECIFIC CONFIGURATIONS
-# ============================================================================
+    # RAG
+    chunk_size:      int   = field(default_factory=lambda: _int("CHUNK_SIZE", "1000"))
+    chunk_overlap:   int   = field(default_factory=lambda: _int("CHUNK_OVERLAP", "200"))
+    retrieval_k:     int   = field(default_factory=lambda: _int("RETRIEVAL_K", "4"))
+    retrieval_fetch_k: int = field(default_factory=lambda: _int("RETRIEVAL_FETCH_K", "8"))
+    search_type:     str   = field(default_factory=lambda: os.getenv("SEARCH_TYPE", "mmr"))
+    mmr_lambda:      float = field(default_factory=lambda: _float("MMR_LAMBDA", "0.5"))
+    memory_length:   int   = field(default_factory=lambda: _int("CONVERSATION_MEMORY_LENGTH", "10"))
 
-if DEBUG:
-    TEMPERATURE = 0.3
-else:
-    TEMPERATURE = 0.2
+    # Files
+    max_upload_mb:      int  = field(default_factory=lambda: _int("MAX_UPLOAD_SIZE_MB", "200"))
+    vector_store_type:  str  = field(default_factory=lambda: os.getenv("VECTOR_STORE_TYPE", "faiss"))
+    vector_store_path:  Path = field(default_factory=lambda: _path("VECTOR_STORE_PATH", "./data/vector_store"))
+    data_path:          Path = field(default_factory=lambda: Path("./data"))
 
-# ============================================================================
-# EXPORT CONFIGURATION DICTIONARY
-# ============================================================================
+    # Derived
+    @property
+    def max_upload_bytes(self) -> int:
+        return self.max_upload_mb * 1024 * 1024
 
-CONFIG = {
-    "app": {
-        "name": APP_NAME,
-        "icon": APP_ICON,
-        "version": APP_VERSION,
-        "description": APP_DESCRIPTION,
-        "debug": DEBUG
-    },
-    "ollama": {
-        "host": OLLAMA_HOST,
-        "default_model": DEFAULT_MODEL,
-        "available_models": AVAILABLE_MODELS,
-        "temperature": TEMPERATURE,
-    },
-    "rag": {
-        "chunk_size": CHUNK_SIZE,
-        "chunk_overlap": CHUNK_OVERLAP,
-        "retrieval_k": RETRIEVAL_K,
-        "search_type": SEARCH_TYPE,
-        "memory_length": CONVERSATION_MEMORY_LENGTH
-    },
-    "files": {
-        "supported_extensions": SUPPORTED_EXTENSIONS,
-        "max_upload_size_mb": MAX_UPLOAD_SIZE_MB,
-        "data_path": str(DATA_PATH)
-    },
-    "ui": {
-        "theme": THEME,
-        "layout": LAYOUT
-    }
-}
+    @property
+    def chunk_separators(self) -> List[str]:
+        return ["\n\n", "\n", " ", ""]
 
-# ============================================================================
-# PRINT CONFIG STATUS (only in debug mode)
-# ============================================================================
+    def __post_init__(self):
+        if not 0.0 <= self.temperature <= 2.0:
+            raise ValueError(f"TEMPERATURE must be 0–2, got {self.temperature}")
+        if self.chunk_overlap >= self.chunk_size:
+            raise ValueError("CHUNK_OVERLAP must be less than CHUNK_SIZE")
+        if self.retrieval_k < 1:
+            raise ValueError("RETRIEVAL_K must be >= 1")
 
-if DEBUG:
-    print("=" * 60)
-    print(f"📋 {APP_NAME} v{APP_VERSION} - FREE Local LLM Version")
-    print("=" * 60)
-    print(f"✅ Model: {DEFAULT_MODEL}")
-    print(f"✅ Ollama Host: {OLLAMA_HOST}")
-    print(f"✅ Chunk Size: {CHUNK_SIZE}")
-    print(f"✅ Retrieval K: {RETRIEVAL_K}")
-    print(f"✅ Data Path: {DATA_PATH}")
-    print(f"✅ Vector Store: {VECTOR_STORE_PATH}")
-    print(f"✅ Supported Files: {', '.join(SUPPORTED_EXTENSIONS)}")
-    print("=" * 60)
-    print("🆓 100% FREE - No API Key Required!")
-    print("=" * 60)
+    def validate(self) -> dict[str, bool]:
+        """Runtime checks (writable paths etc.)"""
+        return {
+            "chunk_size_valid":       100 <= self.chunk_size <= 5000,
+            "chunk_overlap_valid":    0 <= self.chunk_overlap < self.chunk_size,
+            "retrieval_k_valid":      1 <= self.retrieval_k <= 20,
+            "temperature_valid":      0 <= self.temperature <= 2,
+            "data_path_writable":     self.data_path.exists() and os.access(self.data_path, os.W_OK),
+            "vector_store_writable":  self.vector_store_path.exists() and os.access(self.vector_store_path, os.W_OK),
+        }
+
+    def is_ready(self) -> bool:
+        v = self.validate()
+        return all(v.values())
+
+    def summary(self) -> dict:
+        return {
+            "model":        self.default_model,
+            "host":         self.ollama_host,
+            "temperature":  self.temperature,
+            "chunk_size":   self.chunk_size,
+            "retrieval_k":  self.retrieval_k,
+            "search_type":  self.search_type,
+            "memory":       self.memory_length,
+            "upload_limit": f"{self.max_upload_mb} MB",
+        }
+
+
+# ── Bootstrap (create dirs) — call explicitly, not at import ─────────────────
+
+def bootstrap(cfg: Settings) -> None:
+    """Create required directories. Call once at app startup."""
+    for p in [
+        cfg.data_path,
+        cfg.data_path / "raw",
+        cfg.data_path / "processed",
+        cfg.vector_store_path,
+        Path("./logs"),
+    ]:
+        p.mkdir(parents=True, exist_ok=True)
+
+    if cfg.debug:
+        import pprint
+        print(f"\n{APP_NAME} v{APP_VERSION} — debug mode")
+        pprint.pprint(cfg.summary())
+
+
+# ── Singleton ─────────────────────────────────────────────────────────────────
+
+cfg = Settings()
