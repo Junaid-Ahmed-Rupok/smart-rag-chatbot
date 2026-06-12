@@ -1,177 +1,496 @@
 """
 Professional Component Library
-Senior Engineer: 10+ years production experience
+Enhanced: Dark mode, animations, new components
 """
 
 import streamlit as st
-from typing import Optional, Callable
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 
+
+# ── CSS ──────────────────────────────────────────────────────────────────────
+
+THEME_CSS = """
+<style>
+/* ── Root tokens ── */
+:root {
+    --blue-500: #1E88E5;
+    --blue-700: #1565C0;
+    --blue-100: #DBEAFE;
+    --blue-900: #1E3A5F;
+
+    --green-100: #D1FAE5;
+    --green-800: #065F46;
+    --yellow-100: #FEF3C7;
+    --yellow-800: #92400E;
+    --red-100:  #FEE2E2;
+    --red-800:  #991B1B;
+
+    --surface:      #FFFFFF;
+    --surface-alt:  #F8FAFC;
+    --border:       #E2E8F0;
+    --text-primary: #0F172A;
+    --text-muted:   #64748B;
+    --text-hint:    #94A3B8;
+    --radius-sm:    6px;
+    --radius-md:    10px;
+    --radius-lg:    14px;
+    --radius-pill:  9999px;
+    --shadow-sm:    0 1px 3px rgba(0,0,0,.08);
+    --shadow-md:    0 4px 12px rgba(0,0,0,.10);
+    --ease:         cubic-bezier(.4,0,.2,1);
+    --speed:        220ms;
+}
+
+/* ── Dark mode ── */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --blue-500:     #60A5FA;
+        --blue-700:     #3B82F6;
+        --blue-100:     #1E3A5F;
+        --blue-900:     #BFDBFE;
+
+        --green-100:    #064E3B;
+        --green-800:    #6EE7B7;
+        --yellow-100:   #451A03;
+        --yellow-800:   #FDE68A;
+        --red-100:      #450A0A;
+        --red-800:      #FCA5A5;
+
+        --surface:      #1E293B;
+        --surface-alt:  #0F172A;
+        --border:       #334155;
+        --text-primary: #F1F5F9;
+        --text-muted:   #94A3B8;
+        --text-hint:    #64748B;
+        --shadow-sm:    0 1px 3px rgba(0,0,0,.4);
+        --shadow-md:    0 4px 12px rgba(0,0,0,.4);
+    }
+}
+
+/* Streamlit dark-class override */
+[data-theme="dark"] {
+    --blue-500:     #60A5FA;
+    --blue-700:     #3B82F6;
+    --blue-100:     #1E3A5F;
+    --blue-900:     #BFDBFE;
+    --green-100:    #064E3B;
+    --green-800:    #6EE7B7;
+    --yellow-100:   #451A03;
+    --yellow-800:   #FDE68A;
+    --red-100:      #450A0A;
+    --red-800:      #FCA5A5;
+    --surface:      #1E293B;
+    --surface-alt:  #0F172A;
+    --border:       #334155;
+    --text-primary: #F1F5F9;
+    --text-muted:   #94A3B8;
+    --text-hint:    #64748B;
+    --shadow-sm:    0 1px 3px rgba(0,0,0,.4);
+    --shadow-md:    0 4px 12px rgba(0,0,0,.4);
+}
+
+/* ── Animations ── */
+@keyframes fade-up {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse-dot {
+    0%, 100% { transform: scale(1); opacity: .6; }
+    50%       { transform: scale(1.4); opacity: 1; }
+}
+@keyframes progress-fill {
+    from { width: 0%; }
+    to   { width: var(--pct); }
+}
+@keyframes skeleton-shimmer {
+    from { background-position: -400px 0; }
+    to   { background-position:  400px 0; }
+}
+
+/* ── Cards ── */
+.ds-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+    box-shadow: var(--shadow-sm);
+    animation: fade-up var(--speed) var(--ease) both;
+    transition: box-shadow var(--speed) var(--ease),
+                transform   var(--speed) var(--ease);
+    color: var(--text-primary);
+}
+.ds-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+/* ── Badge ── */
+.ds-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: .25rem .65rem;
+    border-radius: var(--radius-pill);
+    font-size: .75rem;
+    font-weight: 600;
+    line-height: 1;
+}
+
+/* ── Progress bar ── */
+.ds-progress-wrap {
+    background: var(--border);
+    border-radius: var(--radius-pill);
+    overflow: hidden;
+    height: 8px;
+}
+.ds-progress-fill {
+    height: 100%;
+    border-radius: var(--radius-pill);
+    animation: progress-fill .8s var(--ease) both;
+}
+
+/* ── Table ── */
+.ds-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .875rem;
+    color: var(--text-primary);
+}
+.ds-table th {
+    text-align: left;
+    padding: .6rem 1rem;
+    font-weight: 600;
+    font-size: .75rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--text-muted);
+    border-bottom: 2px solid var(--border);
+}
+.ds-table td {
+    padding: .75rem 1rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+}
+.ds-table tr:last-child td { border-bottom: none; }
+.ds-table tr:hover td {
+    background: var(--surface-alt);
+    transition: background var(--speed) var(--ease);
+}
+
+/* ── Alert ── */
+.ds-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: .75rem;
+    padding: .9rem 1rem;
+    border-radius: var(--radius-md);
+    border-left: 3px solid;
+    animation: fade-up var(--speed) var(--ease) both;
+    color: var(--text-primary);
+}
+.ds-alert-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: .05rem; }
+.ds-alert-title { font-weight: 600; font-size: .875rem; }
+.ds-alert-body  { font-size: .8125rem; opacity: .85; margin-top: .2rem; }
+
+/* ── Skeleton loader ── */
+.ds-skeleton {
+    border-radius: var(--radius-sm);
+    background: linear-gradient(
+        90deg,
+        var(--surface-alt) 25%,
+        var(--border) 50%,
+        var(--surface-alt) 75%
+    );
+    background-size: 800px 100%;
+    animation: skeleton-shimmer 1.6s infinite linear;
+}
+
+/* ── Sidebar ── */
+.css-1d391kg { background: var(--surface-alt); }
+
+/* ── Chat bubble ── */
+.ds-bubble-user {
+    background: var(--blue-500);
+    color: #fff;
+    border-radius: 1rem 1rem .25rem 1rem;
+}
+.ds-bubble-assistant {
+    background: var(--surface);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: 1rem 1rem 1rem .25rem;
+}
+</style>
+"""
+
+
+# ── Design system class ───────────────────────────────────────────────────────
+
 class DesignSystem:
-    """Enterprise-grade design system components"""
-    
+    """Enterprise-grade design system — dark-mode aware, animated."""
+
+    # ── Layout ──────────────────────────────────────────────────────────────
+
     @staticmethod
-    def header(title: str, subtitle: Optional[str] = None, icon: Optional[str] = None):
-        """Professional header with gradient"""
-        icon_html = f'<span style="font-size: 2rem; margin-right: 0.5rem;">{icon}</span>' if icon else ''
-        st.markdown(f"""
-            <div style="margin-bottom: 2rem;">
-                <div style="display: flex; align-items: center;">
+    def inject_theme():
+        """Inject shared CSS (call once at app startup)."""
+        st.markdown(THEME_CSS, unsafe_allow_html=True)
+
+    @staticmethod
+    def header(
+        title: str,
+        subtitle: Optional[str] = None,
+        icon: Optional[str] = None,
+    ):
+        icon_html = f'<span style="font-size:2rem;margin-right:.5rem">{icon}</span>' if icon else ""
+        sub_html = (
+            f'<p style="color:var(--text-muted);margin:.4rem 0 0">{subtitle}</p>'
+            if subtitle else ""
+        )
+        st.markdown(
+            f"""
+            <div style="margin-bottom:2rem;animation:fade-up 300ms cubic-bezier(.4,0,.2,1) both">
+                <div style="display:flex;align-items:center">
                     {icon_html}
-                    <h1 style="background: linear-gradient(135deg, #1E88E5, #0D47A1); 
-                               -webkit-background-clip: text; 
-                               -webkit-text-fill-color: transparent;
-                               margin: 0;">{title}</h1>
+                    <h1 style="color:var(--blue-500);margin:0;font-size:2rem;font-weight:700">{title}</h1>
                 </div>
-                {f'<p class="caption" style="margin-top: 0.5rem;">{subtitle}</p>' if subtitle else ''}
+                {sub_html}
             </div>
-        """, unsafe_allow_html=True)
-    
-    @staticmethod
-    def metric_card(label: str, value: str, icon: str, delta: Optional[str] = None):
-        """Professional metric card with hover effect"""
-        delta_html = f'<div style="color: #10B981; font-size: 0.75rem;">{delta}</div>' if delta else ''
-        st.markdown(f"""
-            <div class="metric-card" style="
-                background: white;
-                border-radius: 1rem;
-                padding: 1.25rem;
-                text-align: center;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-                transition: all 0.3s ease;
-            ">
-                <div style="font-size: 2rem;">{icon}</div>
-                <div style="font-size: 0.875rem; color: #64748B; margin-top: 0.5rem;">{label}</div>
-                <div style="font-size: 1.875rem; font-weight: 700; color: #1E88E5;">{value}</div>
-                {delta_html}
-            </div>
-        """, unsafe_allow_html=True)
-    
-    @staticmethod
-    def status_badge(status: str, type: str = "info"):
-        """Status badge with semantic colors"""
-        colors = {
-            "success": "#D1FAE5", "success_text": "#065F46",
-            "warning": "#FEF3C7", "warning_text": "#92400E",
-            "error": "#FEE2E2", "error_text": "#991B1B",
-            "info": "#DBEAFE", "info_text": "#1E40AF"
-        }
-        bg = colors.get(type, colors["info"])
-        text = colors.get(f"{type}_text", colors["info_text"])
-        st.markdown(f"""
-            <span style="
-                display: inline-block;
-                background: {bg};
-                color: {text};
-                padding: 0.25rem 0.75rem;
-                border-radius: 9999px;
-                font-size: 0.75rem;
-                font-weight: 600;
-            ">{status}</span>
-        """, unsafe_allow_html=True)
-    
+            """,
+            unsafe_allow_html=True,
+        )
+
     @staticmethod
     def divider():
-        """Professional divider"""
-        st.markdown('<hr style="margin: 1.5rem 0; border-color: #E2E8F0;">', unsafe_allow_html=True)
-    
+        st.markdown(
+            '<hr style="margin:1.5rem 0;border:none;border-top:1px solid var(--border)">',
+            unsafe_allow_html=True,
+        )
+
+    # ── Metric card ─────────────────────────────────────────────────────────
+
     @staticmethod
-    def source_card(filename: str, content_preview: str = ""):
-        """Source document card"""
-        st.markdown(f"""
-            <div class="source-document" style="
-                background: #F8FAFC;
-                border-left: 3px solid #1E88E5;
-                border-radius: 0.5rem;
-                padding: 0.75rem;
-                margin: 0.5rem 0;
-            ">
-                <div style="font-weight: 600; font-size: 0.875rem;">📄 {filename}</div>
-                {f'<div style="font-size: 0.75rem; color: #64748B; margin-top: 0.25rem;">{content_preview[:100]}...</div>' if content_preview else ''}
+    def metric_card(
+        label: str,
+        value: str,
+        icon: str,
+        delta: Optional[str] = None,
+        delta_positive: bool = True,
+    ):
+        delta_color = "var(--green-800)" if delta_positive else "var(--red-800)"
+        delta_html = (
+            f'<div style="font-size:.75rem;color:{delta_color};margin-top:.2rem">{delta}</div>'
+            if delta else ""
+        )
+        st.markdown(
+            f"""
+            <div class="ds-card" style="text-align:center">
+                <div style="font-size:2rem">{icon}</div>
+                <div style="font-size:.8125rem;color:var(--text-muted);margin-top:.4rem">{label}</div>
+                <div style="font-size:1.75rem;font-weight:700;color:var(--blue-500);margin-top:.2rem">{value}</div>
+                {delta_html}
             </div>
-        """, unsafe_allow_html=True)
-    
+            """,
+            unsafe_allow_html=True,
+        )
+
+    # ── Status badge ─────────────────────────────────────────────────────────
+
     @staticmethod
-    def loading_animation():
-        """Professional loading animation"""
-        with st.spinner(""):
-            st.markdown("""
-                <div class="loading-spinner" style="
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 0.5rem;
-                    padding: 2rem;
-                ">
-                    <div style="width: 8px; height: 8px; background: #1E88E5; border-radius: 50%; animation: pulse 1.5s ease-in-out infinite;"></div>
-                    <div style="width: 8px; height: 8px; background: #1E88E5; border-radius: 50%; animation: pulse 1.5s ease-in-out infinite 0.2s;"></div>
-                    <div style="width: 8px; height: 8px; background: #1E88E5; border-radius: 50%; animation: pulse 1.5s ease-in-out infinite 0.4s;"></div>
+    def status_badge(status: str, type: str = "info"):
+        palettes = {
+            "success": ("var(--green-100)", "var(--green-800)", "●"),
+            "warning": ("var(--yellow-100)", "var(--yellow-800)", "●"),
+            "error":   ("var(--red-100)",    "var(--red-800)",   "●"),
+            "info":    ("var(--blue-100)",   "var(--blue-900)",  "●"),
+        }
+        bg, fg, dot = palettes.get(type, palettes["info"])
+        st.markdown(
+            f"""
+            <span class="ds-badge" style="background:{bg};color:{fg}">
+                <span style="font-size:.5rem">{dot}</span>{status}
+            </span>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    # ── Progress bar ─────────────────────────────────────────────────────────
+
+    @staticmethod
+    def progress_bar(
+        label: str,
+        value: float,          # 0.0 – 1.0
+        color: str = "var(--blue-500)",
+        show_pct: bool = True,
+    ):
+        pct = max(0.0, min(1.0, value)) * 100
+        label_right = f'<span style="color:var(--text-muted);font-size:.8125rem">{pct:.0f}%</span>' if show_pct else ""
+        st.markdown(
+            f"""
+            <div style="margin:.5rem 0">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.35rem">
+                    <span style="font-size:.875rem;color:var(--text-primary)">{label}</span>
+                    {label_right}
                 </div>
-            """, unsafe_allow_html=True)
-    
+                <div class="ds-progress-wrap">
+                    <div class="ds-progress-fill"
+                         style="width:{pct:.1f}%;background:{color};--pct:{pct:.1f}%"></div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    # ── Alert / inline notification ──────────────────────────────────────────
+
     @staticmethod
-    def toast(message: str, type: str = "info", duration: int = 3000):
-        """Toast notification (uses st.toast in newer versions)"""
+    def alert(
+        title: str,
+        body: Optional[str] = None,
+        type: str = "info",
+    ):
+        palettes = {
+            "success": ("var(--green-100)",  "var(--green-800)", "var(--green-800)", "✓"),
+            "warning": ("var(--yellow-100)", "var(--yellow-800)", "var(--yellow-800)", "⚠"),
+            "error":   ("var(--red-100)",    "var(--red-800)",   "var(--red-800)",   "✕"),
+            "info":    ("var(--blue-100)",   "var(--blue-900)",  "var(--blue-500)",  "ℹ"),
+        }
+        bg, fg, border_c, icon = palettes.get(type, palettes["info"])
+        body_html = f'<div class="ds-alert-body" style="color:{fg}">{body}</div>' if body else ""
+        st.markdown(
+            f"""
+            <div class="ds-alert" style="background:{bg};border-color:{border_c}">
+                <span class="ds-alert-icon" style="color:{border_c}">{icon}</span>
+                <div>
+                    <div class="ds-alert-title" style="color:{fg}">{title}</div>
+                    {body_html}
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    # ── Data table ───────────────────────────────────────────────────────────
+
+    @staticmethod
+    def table(
+        headers: List[str],
+        rows: List[List[Any]],
+        caption: Optional[str] = None,
+    ):
+        """Styled HTML table with hover rows."""
+        th_cells = "".join(f"<th>{h}</th>" for h in headers)
+        tr_rows = ""
+        for row in rows:
+            tds = "".join(f"<td>{cell}</td>" for cell in row)
+            tr_rows += f"<tr>{tds}</tr>"
+        cap_html = (
+            f'<caption style="font-size:.75rem;color:var(--text-muted);text-align:left;padding-bottom:.5rem">{caption}</caption>'
+            if caption else ""
+        )
+        st.markdown(
+            f"""
+            <div class="ds-card" style="padding:0;overflow:hidden">
+                <table class="ds-table">
+                    {cap_html}
+                    <thead><tr>{th_cells}</tr></thead>
+                    <tbody>{tr_rows}</tbody>
+                </table>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    # ── Skeleton loader ──────────────────────────────────────────────────────
+
+    @staticmethod
+    def skeleton(lines: int = 3, last_short: bool = True):
+        """Animated placeholder while content loads."""
+        bars = ""
+        for i in range(lines):
+            short = last_short and i == lines - 1
+            w = "55%" if short else "100%"
+            h = "14px" if i > 0 else "20px"
+            bars += f'<div class="ds-skeleton" style="width:{w};height:{h};margin-bottom:.6rem"></div>'
+        st.markdown(
+            f'<div style="padding:.5rem 0;animation:fade-up 300ms ease both">{bars}</div>',
+            unsafe_allow_html=True,
+        )
+
+    # ── Source document card ─────────────────────────────────────────────────
+
+    @staticmethod
+    def source_card(filename: str, preview: str = ""):
+        preview_html = (
+            f'<div style="font-size:.75rem;color:var(--text-muted);margin-top:.25rem">'
+            f'{preview[:120]}…</div>'
+            if preview else ""
+        )
+        st.markdown(
+            f"""
+            <div style="
+                background:var(--surface-alt);
+                border-left:3px solid var(--blue-500);
+                border-radius:0 var(--radius-sm) var(--radius-sm) 0;
+                padding:.7rem .9rem;
+                margin:.4rem 0;
+                animation:fade-up 220ms ease both;
+                color:var(--text-primary);
+            ">
+                <div style="font-weight:600;font-size:.875rem">📄 {filename}</div>
+                {preview_html}
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    # ── Toast ────────────────────────────────────────────────────────────────
+
+    @staticmethod
+    def toast(message: str, type: str = "info"):
         icons = {"success": "✅", "error": "❌", "warning": "⚠️", "info": "ℹ️"}
         st.toast(f"{icons.get(type, 'ℹ️')} {message}")
 
-# Global instance for easy import
-ds = DesignSystem()
 
+# ── Chat bubble ───────────────────────────────────────────────────────────────
+
+def chat_bubble(
+    content: str,
+    role: str = "user",
+    timestamp: Optional[datetime] = None,
+):
+    time_str = (timestamp or datetime.now()).strftime("%I:%M %p")
+    align = "flex-end" if role == "user" else "flex-start"
+    css_class = "ds-bubble-user" if role == "user" else "ds-bubble-assistant"
+    st.markdown(
+        f"""
+        <div style="display:flex;justify-content:{align};margin:.6rem 0;animation:fade-up 200ms ease both">
+            <div class="{css_class}" style="padding:.7rem 1rem;max-width:80%;box-shadow:var(--shadow-sm)">
+                <div style="font-size:.875rem;line-height:1.55">{content}</div>
+                <div style="font-size:.6rem;opacity:.55;margin-top:.35rem;text-align:right">{time_str}</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+# ── App bootstrap ─────────────────────────────────────────────────────────────
 
 def apply_professional_theme():
-    """Apply complete professional theme to Streamlit app"""
-    
-    # Page config
     st.set_page_config(
         page_title="Smart RAG Chatbot",
         page_icon="🤖",
         layout="wide",
-        initial_sidebar_state="expanded"
+        initial_sidebar_state="expanded",
     )
-    
-    # Hide default Streamlit menu and footer
-    st.markdown("""
-        <style>
-        #MainMenu {visibility: hidden;}
-        footer {visibility: hidden;}
-        header {visibility: hidden;}
-        </style>
-    """, unsafe_allow_html=True)
-    
-    # Load custom CSS
-    try:
-        with open("static/style.css", "r", encoding="utf-8") as f:
-            css = f.read()
-            st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
-    except FileNotFoundError:
-        st.warning("CSS file not found. Using default styling.")
+    st.markdown(
+        "<style>#MainMenu,footer,header{visibility:hidden}</style>",
+        unsafe_allow_html=True,
+    )
+    DesignSystem.inject_theme()
 
 
-def chat_bubble(content: str, role: str = "user", timestamp: Optional[datetime] = None):
-    """Professional chat bubble component"""
-    time_str = timestamp.strftime("%I:%M %p") if timestamp else datetime.now().strftime("%I:%M %p")
-    align = "flex-end" if role == "user" else "flex-start"
-    bg = "linear-gradient(135deg, #1E88E5, #1565C0)" if role == "user" else "white"
-    color = "white" if role == "user" else "#1E293B"
-    border = "none" if role == "user" else "1px solid #E2E8F0"
-    border_radius = "1rem 1rem 0.25rem 1rem" if role == "user" else "1rem 1rem 1rem 0.25rem"
-    
-    st.markdown(f"""
-        <div style="display: flex; justify-content: {align}; margin: 0.75rem 0;">
-            <div style="
-                background: {bg};
-                color: {color};
-                border: {border};
-                border-radius: {border_radius};
-                padding: 0.75rem 1rem;
-                max-width: 80%;
-                box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-            ">
-                <div style="font-size: 0.875rem; line-height: 1.5;">{content}</div>
-                <div style="font-size: 0.625rem; opacity: 0.6; margin-top: 0.375rem; text-align: right;">
-                    {time_str}
-                </div>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
+# ── Global instance ───────────────────────────────────────────────────────────
+ds = DesignSystem()
