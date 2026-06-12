@@ -6,13 +6,22 @@ Enhanced: Dark mode, animations, new components
 import streamlit as st
 from typing import Optional, List, Dict, Any
 from datetime import datetime
+from pathlib import Path
 
+# ── Load external CSS ──────────────────────────────────────────────────────
+
+def load_css():
+    """Load the external style.css file."""
+    css_path = Path(__file__).parent.parent / "style.css"
+    if css_path.exists():
+        with open(css_path, "r") as f:
+            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 # ── CSS ──────────────────────────────────────────────────────────────────────
 
 THEME_CSS = """
 <style>
-/* ── Root tokens ── */
+/* ── Root tokens (light mode default) ── */
 :root {
     --blue-500: #1E88E5;
     --blue-700: #1565C0;
@@ -42,9 +51,33 @@ THEME_CSS = """
     --speed:        220ms;
 }
 
-/* ── Dark mode ── */
+/* ── Dark mode detection via Streamlit theme attribute ── */
+[data-theme="dark"] {
+    --blue-500:     #60A5FA;
+    --blue-700:     #3B82F6;
+    --blue-100:     #1E3A5F;
+    --blue-900:     #BFDBFE;
+
+    --green-100:    #064E3B;
+    --green-800:    #6EE7B7;
+    --yellow-100:   #451A03;
+    --yellow-800:   #FDE68A;
+    --red-100:      #450A0A;
+    --red-800:      #FCA5A5;
+
+    --surface:      #1E293B;
+    --surface-alt:  #0F172A;
+    --border:       #334155;
+    --text-primary: #F1F5F9;
+    --text-muted:   #94A3B8;
+    --text-hint:    #64748B;
+    --shadow-sm:    0 1px 3px rgba(0,0,0,.4);
+    --shadow-md:    0 4px 12px rgba(0,0,0,.4);
+}
+
+/* Also support prefers-color-scheme for browsers without data attribute */
 @media (prefers-color-scheme: dark) {
-    :root {
+    :root:not([data-theme="light"]) {
         --blue-500:     #60A5FA;
         --blue-700:     #3B82F6;
         --blue-100:     #1E3A5F;
@@ -68,36 +101,10 @@ THEME_CSS = """
     }
 }
 
-/* Streamlit dark-class override */
-[data-theme="dark"] {
-    --blue-500:     #60A5FA;
-    --blue-700:     #3B82F6;
-    --blue-100:     #1E3A5F;
-    --blue-900:     #BFDBFE;
-    --green-100:    #064E3B;
-    --green-800:    #6EE7B7;
-    --yellow-100:   #451A03;
-    --yellow-800:   #FDE68A;
-    --red-100:      #450A0A;
-    --red-800:      #FCA5A5;
-    --surface:      #1E293B;
-    --surface-alt:  #0F172A;
-    --border:       #334155;
-    --text-primary: #F1F5F9;
-    --text-muted:   #94A3B8;
-    --text-hint:    #64748B;
-    --shadow-sm:    0 1px 3px rgba(0,0,0,.4);
-    --shadow-md:    0 4px 12px rgba(0,0,0,.4);
-}
-
 /* ── Animations ── */
 @keyframes fade-up {
     from { opacity: 0; transform: translateY(10px); }
     to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes pulse-dot {
-    0%, 100% { transform: scale(1); opacity: .6; }
-    50%       { transform: scale(1.4); opacity: 1; }
 }
 @keyframes progress-fill {
     from { width: 0%; }
@@ -205,22 +212,6 @@ THEME_CSS = """
     background-size: 800px 100%;
     animation: skeleton-shimmer 1.6s infinite linear;
 }
-
-/* ── Sidebar ── */
-.css-1d391kg { background: var(--surface-alt); }
-
-/* ── Chat bubble ── */
-.ds-bubble-user {
-    background: var(--blue-500);
-    color: #fff;
-    border-radius: 1rem 1rem .25rem 1rem;
-}
-.ds-bubble-assistant {
-    background: var(--surface);
-    color: var(--text-primary);
-    border: 1px solid var(--border);
-    border-radius: 1rem 1rem 1rem .25rem;
-}
 </style>
 """
 
@@ -235,6 +226,9 @@ class DesignSystem:
     @staticmethod
     def inject_theme():
         """Inject shared CSS (call once at app startup)."""
+        # Load external style.css first (for chrome styling)
+        load_css()
+        # Then inject component CSS
         st.markdown(THEME_CSS, unsafe_allow_html=True)
 
     @staticmethod
@@ -429,15 +423,7 @@ class DesignSystem:
         )
         st.markdown(
             f"""
-            <div style="
-                background:var(--surface-alt);
-                border-left:3px solid var(--blue-500);
-                border-radius:0 var(--radius-sm) var(--radius-sm) 0;
-                padding:.7rem .9rem;
-                margin:.4rem 0;
-                animation:fade-up 220ms ease both;
-                color:var(--text-primary);
-            ">
+            <div class="source-document">
                 <div style="font-weight:600;font-size:.875rem">📄 {filename}</div>
                 {preview_html}
             </div>
