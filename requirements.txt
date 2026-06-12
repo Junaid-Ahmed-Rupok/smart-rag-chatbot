@@ -1,7 +1,30 @@
-streamlit>=1.28.0
-langchain>=0.1.0
-langchain-community>=0.1.0
-faiss-cpu>=1.7.4
-pypdf>=3.0.0
-python-docx>=1.0.0
-requests>=2.31.0
+# ── Web framework ─────────────────────────────────────────────────────────────
+streamlit>=1.32.0,<2.0.0
+
+# ── LangChain ─────────────────────────────────────────────────────────────────
+langchain>=0.2.0,<0.3.0
+langchain-community>=0.2.0,<0.3.0
+langchain-core>=0.2.0,<0.3.0          # transitive but pin to avoid resolver drift
+
+# ── Vector store ──────────────────────────────────────────────────────────────
+faiss-cpu>=1.8.0,<2.0.0
+
+# ── Document loaders ──────────────────────────────────────────────────────────
+pypdf>=4.0.0,<5.0.0                    # PyPDFLoader; pypdf 3.x has known extraction bugs
+python-docx>=1.1.0,<2.0.0             # Docx2txtLoader dependency
+docx2txt>=0.8                          # required by langchain Docx2txtLoader at runtime
+
+# ── Ollama integration ────────────────────────────────────────────────────────
+ollama>=0.1.8                          # Python client (langchain-community pulls this)
+
+# ── HTTP ──────────────────────────────────────────────────────────────────────
+requests>=2.32.0,<3.0.0
+
+# ── Config / env ──────────────────────────────────────────────────────────────
+python-dotenv>=1.0.0,<2.0.0
+
+# ── Dev / optional ────────────────────────────────────────────────────────────
+# Uncomment to enable:
+# pytest>=8.0.0                        # unit tests
+# pytest-asyncio>=0.23.0              # async test support
+# ruff>=0.4.0                         # linter
