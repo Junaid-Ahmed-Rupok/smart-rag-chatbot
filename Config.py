@@ -1,6 +1,6 @@
 """
-settings.py — single source of truth for all app configuration.
-Import: from settings import cfg, AVAILABLE_MODELS, SUPPORTED_EXTENSIONS
+Config.py — single source of truth for all app configuration.
+Import: from Config import cfg, AVAILABLE_MODELS, SUPPORTED_EXTENSIONS
 """
 
 import os
@@ -99,6 +99,12 @@ class Settings:
             raise ValueError("CHUNK_OVERLAP must be less than CHUNK_SIZE")
         if self.retrieval_k < 1:
             raise ValueError("RETRIEVAL_K must be >= 1")
+        if self.retrieval_fetch_k < self.retrieval_k:
+            raise ValueError("RETRIEVAL_FETCH_K must be >= RETRIEVAL_K")
+        if not 0.0 <= self.mmr_lambda <= 1.0:
+            raise ValueError(f"MMR_LAMBDA must be 0–1, got {self.mmr_lambda}")
+        if self.search_type not in ("mmr", "similarity"):
+            raise ValueError(f"SEARCH_TYPE must be 'mmr' or 'similarity', got {self.search_type!r}")
 
     def validate(self) -> dict[str, bool]:
         """Runtime checks (writable paths etc.)"""
