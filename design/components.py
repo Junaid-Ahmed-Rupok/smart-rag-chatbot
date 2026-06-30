@@ -490,3 +490,4 @@ def apply_professional_theme():
 
 # ── Global instance ───────────────────────────────────────────────────────────
 ds = DesignSystem()
+
