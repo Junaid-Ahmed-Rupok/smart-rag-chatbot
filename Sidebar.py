@@ -16,12 +16,26 @@ import streamlit as st
 import Session
 from design.components import ds
 from Rag import get_rag_pipeline
-from Config import APP_NAME, APP_VERSION, cfg
+from Config import APP_NAME, APP_VERSION, GROQ_AVAILABLE_MODELS, cfg
 
 log = logging.getLogger(__name__)
 
 
-# ── Ollama probe ──────────────────────────────────────────────────────────────
+# ── Provider probes ──────────────────────────────────────────────────────────
+
+@st.cache_data(ttl=60, show_spinner=False)
+def _probe_groq(api_key: str) -> bool:
+    """Poll Groq once per minute to confirm the key/connection is good."""
+    try:
+        r = requests.get(
+            "https://api.groq.com/openai/v1/models",
+            headers={"Authorization": f"Bearer {api_key}"},
+            timeout=5,
+        )
+        return r.status_code == 200
+    except requests.RequestException:
+        return False
+
 
 @st.cache_data(ttl=60, show_spinner=False)
 def _probe_ollama(host: str) -> tuple[bool, list[str]]:
@@ -45,12 +59,13 @@ def _probe_ollama(host: str) -> tuple[bool, list[str]]:
 # ── Sections ──────────────────────────────────────────────────────────────────
 
 def _render_brand() -> None:
+    tagline = "local · free" if cfg.llm_provider == "ollama" else "powered by Groq"
     st.markdown(
         f"""
         <div style="padding:1rem 0 .5rem;text-align:center">
             <div style="font-size:2.5rem">🤖</div>
             <div style="font-weight:700;font-size:1rem;color:var(--text-primary)">{APP_NAME}</div>
-            <div style="font-size:.75rem;color:var(--text-muted)">v{APP_VERSION} &middot; local &middot; free</div>
+            <div style="font-size:.75rem;color:var(--text-muted)">v{APP_VERSION} &middot; {tagline}</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -66,9 +81,36 @@ def _section_label(text: str) -> None:
 
 
 def _render_model_section() -> tuple[str | None, bool]:
-    """Returns (selected_model, ollama_ok)."""
+    """Returns (selected_model, provider_ready)."""
     _section_label("Model")
 
+    if cfg.llm_provider == "groq":
+        groq_ok = _probe_groq(cfg.groq_api_key)
+        Session.set_ollama_status(groq_ok)  # reused flag: "is the active provider reachable"
+
+        if groq_ok:
+            ds.status_badge("Groq connected", "success")
+            st.markdown("<div style='margin:.5rem 0'></div>", unsafe_allow_html=True)
+            default_idx = (
+                GROQ_AVAILABLE_MODELS.index(cfg.groq_model)
+                if cfg.groq_model in GROQ_AVAILABLE_MODELS else 0
+            )
+            selected_model = st.selectbox(
+                "Active model",
+                GROQ_AVAILABLE_MODELS,
+                index=default_idx,
+                label_visibility="collapsed",
+            )
+        else:
+            selected_model = None
+            ds.status_badge("Groq unreachable", "error")
+            st.markdown("<div style='margin:.5rem 0'></div>", unsafe_allow_html=True)
+            with st.expander("Troubleshooting"):
+                st.write("Check your internet connection and that `GROQ_API_KEY` in `.env` is a valid key from console.groq.com/keys.")
+
+        return selected_model, groq_ok
+
+    # ── Ollama path ──
     ollama_ok, installed = _probe_ollama(cfg.ollama_host)
     Session.set_ollama_status(ollama_ok)
 
@@ -93,7 +135,7 @@ def _render_model_section() -> tuple[str | None, bool]:
     return selected_model, ollama_ok
 
 
-def _render_documents_section(selected_model: str | None, ollama_ok: bool) -> None:
+def _render_documents_section(selected_model: str | None, provider_ready: bool) -> None:
     _section_label("Documents")
 
     uploaded = st.file_uploader(
@@ -111,8 +153,9 @@ def _render_documents_section(selected_model: str | None, ollama_ok: bool) -> No
         st.markdown("<div style='margin:.4rem 0'></div>", unsafe_allow_html=True)
 
         if st.button("Index documents", use_container_width=True, type="primary"):
-            if not ollama_ok:
-                ds.toast("Start Ollama before indexing", "error")
+            if not provider_ready:
+                msg = "Check your Groq connection" if cfg.llm_provider == "groq" else "Start Ollama"
+                ds.toast(f"{msg} before indexing", "error")
             elif selected_model is None:
                 ds.toast("No model selected", "error")
             else:
@@ -159,16 +202,17 @@ def _render_actions() -> None:
 def render() -> str | None:
     """
     Renders the full sidebar. Returns the selected model name, or None
-    if Ollama is offline or no model is installed.
+    if the active provider (Groq or Ollama) is unreachable or has no
+    available model.
     """
     with st.sidebar:
         _render_brand()
         ds.divider()
 
-        selected_model, ollama_ok = _render_model_section()
+        selected_model, provider_ready = _render_model_section()
         ds.divider()
 
-        _render_documents_section(selected_model, ollama_ok)
+        _render_documents_section(selected_model, provider_ready)
         ds.divider()
 
         _render_stats()
