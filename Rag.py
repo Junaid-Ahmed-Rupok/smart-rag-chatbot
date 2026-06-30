@@ -1,5 +1,5 @@
 """
-rag.py — RAG pipeline using Ollama (local, free, no API key).
+Rag.py — RAG pipeline using Ollama (local, free, no API key).
 """
 
 import logging
@@ -38,17 +38,47 @@ class RAGPipeline:
     """
     Local RAG pipeline backed by Ollama + FAISS.
 
+    Design note — embeddings vs. chat model are intentionally decoupled:
+    embeddings always use `cfg.embedding_model` (a fixed, dedicated
+    embedding model such as nomic-embed-text), while the chat model is
+    whatever the user picks in the sidebar and can change freely via
+    `set_chat_model()`. This means switching the active chat model
+    mid-session never invalidates the vector store — only the LLM and
+    the conversation chain are rebuilt.
+
     Raises exceptions on failure — never calls Streamlit directly.
-    The caller (app.py) is responsible for surfacing errors to the user.
+    The caller (Sidebar.py / Chat.py) is responsible for surfacing
+    errors to the user.
     """
 
-    def __init__(self, model_name: str) -> None:
-        self.model_name    = model_name
+    def __init__(self, chat_model: str) -> None:
+        self.chat_model:    str = chat_model
+        self.embedding_model: str = cfg.embedding_model
+
         self.embeddings:   OllamaEmbeddings | None = None
         self.llm:          Ollama | None            = None
         self.vector_store: FAISS | None             = None
         self.chain:        ConversationalRetrievalChain | None = None
         self._processed:   set[str] = set()
+
+    # ── Model lifecycle ───────────────────────────────────────────────────────
+
+    def set_chat_model(self, chat_model: str) -> None:
+        """
+        Swap the active chat model in place.
+
+        Only the LLM and the (LLM-bound) conversation chain are
+        invalidated — embeddings and the FAISS index are left untouched,
+        so previously indexed documents remain queryable immediately
+        with the new model.
+        """
+        if chat_model == self.chat_model:
+            return
+
+        log.info("Switching chat model: %s -> %s", self.chat_model, chat_model)
+        self.chat_model = chat_model
+        self.llm = None     # lazily rebuilt by init_models()
+        self.chain = None   # chain is bound to self.llm, must be rebuilt
 
     # ── Initialisation ────────────────────────────────────────────────────────
 
@@ -56,20 +86,20 @@ class RAGPipeline:
         """Lazy-init embeddings and LLM. Safe to call multiple times."""
         if self.embeddings is None:
             self.embeddings = OllamaEmbeddings(
-                model=self.model_name,
+                model=self.embedding_model,
                 base_url=cfg.ollama_host,
             )
-            log.debug("Embeddings initialised: %s", self.model_name)
+            log.debug("Embeddings initialised: %s", self.embedding_model)
 
         if self.llm is None:
             self.llm = Ollama(
-                model=self.model_name,
+                model=self.chat_model,
                 base_url=cfg.ollama_host,
                 temperature=cfg.temperature,
                 top_p=cfg.top_p,
                 repeat_penalty=cfg.repeat_penalty,
             )
-            log.debug("LLM initialised: %s (temp=%.2f)", self.model_name, cfg.temperature)
+            log.debug("LLM initialised: %s (temp=%.2f)", self.chat_model, cfg.temperature)
 
     # ── Document processing ───────────────────────────────────────────────────
 
@@ -81,7 +111,7 @@ class RAGPipeline:
             files: Streamlit UploadedFile objects.
 
         Returns:
-            Total number of chunks indexed.
+            Total number of chunks indexed in this call.
 
         Raises:
             ValueError: If no chunks could be extracted.
@@ -94,6 +124,7 @@ class RAGPipeline:
         )
 
         all_chunks = []
+        failed: list[str] = []
 
         for file in files:
             if file.name in self._processed:
@@ -121,11 +152,15 @@ class RAGPipeline:
                 chunks = splitter.split_documents(documents)
                 all_chunks.extend(chunks)
                 self._processed.add(file.name)
-                log.info("Loaded %s → %d chunks", file.name, len(chunks))
+                log.info("Loaded %s -> %d chunks", file.name, len(chunks))
 
             except Exception:
+                # Don't let one bad file (corrupted/encrypted/etc.) abort
+                # the whole batch — log it, skip it, keep going, and tell
+                # the caller which files failed once the batch is done.
                 log.exception("Failed to process file: %s", file.name)
-                raise
+                failed.append(file.name)
+                continue
 
             finally:
                 if tmp_path and tmp_path.exists():
@@ -134,7 +169,7 @@ class RAGPipeline:
         if not all_chunks:
             raise ValueError(
                 "No content could be extracted from the uploaded files. "
-                "Check that the files are not empty or password-protected."
+                "Check that the files are not empty, corrupted, or password-protected."
             )
 
         self.init_models()
@@ -144,9 +179,12 @@ class RAGPipeline:
         else:
             self.vector_store.add_documents(all_chunks)
 
-        # Invalidate the chain so it's rebuilt with the updated retriever
+        # Invalidate the chain so it's rebuilt with the updated retriever.
         self.chain = None
-        log.info("Vector store updated. Total chunks: %d", len(all_chunks))
+        log.info("Vector store updated. New chunks: %d", len(all_chunks))
+
+        if failed:
+            log.warning("Indexing completed with %d failed file(s): %s", len(failed), failed)
 
         return len(all_chunks)
 
@@ -155,8 +193,8 @@ class RAGPipeline:
     def _get_chain(self) -> ConversationalRetrievalChain:
         """
         Return the cached chain, or build it if it doesn't exist yet.
-        Memory is preserved across calls — only reset when the vector
-        store is rebuilt (i.e. new documents are indexed).
+        Memory is preserved across calls — only reset when the chain
+        itself is rebuilt (new documents indexed, or chat model changed).
         """
         if self.chain is not None:
             return self.chain
@@ -190,7 +228,7 @@ class RAGPipeline:
             return_source_documents=True,
             verbose=cfg.debug,
         )
-        log.debug("Conversation chain built (memory_k=%d)", cfg.memory_length)
+        log.debug("Conversation chain built (model=%s, memory_k=%d)", self.chat_model, cfg.memory_length)
         return self.chain
 
     # ── Inference ─────────────────────────────────────────────────────────────
@@ -209,7 +247,7 @@ class RAGPipeline:
         chain  = self._get_chain()
         result = chain.invoke({"question": question})
 
-        # Deduplicate sources while preserving order
+        # Deduplicate sources while preserving order.
         seen: set[str]   = set()
         sources: list[str] = []
         for doc in result.get("source_documents", []):
@@ -243,15 +281,21 @@ def init_rag() -> None:
     st.session_state.setdefault(SESSION_KEYS["rag_pipeline"], None)
 
 
-def get_rag_pipeline(model_name: str) -> RAGPipeline:
+def get_rag_pipeline(chat_model: str) -> RAGPipeline:
     """
-    Return the cached pipeline for this session, or create a new one.
-    If the model changes, the old pipeline is discarded.
+    Return the cached pipeline for this session, creating one on first
+    use. If the user switches chat models, the *same* pipeline instance
+    is reused with its chat model swapped in place — embeddings, the
+    FAISS index, and indexed-file bookkeeping are preserved, so a model
+    switch no longer silently discards indexed documents.
     """
     current: RAGPipeline | None = st.session_state.get(SESSION_KEYS["rag_pipeline"])
 
-    if current is None or current.model_name != model_name:
-        log.info("Creating new RAG pipeline for model: %s", model_name)
-        st.session_state[SESSION_KEYS["rag_pipeline"]] = RAGPipeline(model_name)
+    if current is None:
+        log.info("Creating new RAG pipeline (chat_model=%s, embedding_model=%s)", chat_model, cfg.embedding_model)
+        current = RAGPipeline(chat_model)
+        st.session_state[SESSION_KEYS["rag_pipeline"]] = current
+    else:
+        current.set_chat_model(chat_model)
 
-    return st.session_state[SESSION_KEYS["rag_pipeline"]]
+    return current
