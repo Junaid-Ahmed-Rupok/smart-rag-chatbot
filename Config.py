@@ -28,6 +28,12 @@ AVAILABLE_MODELS: List[str] = [
     "codellama",  # 3.8 GB — code-focused
 ]
 
+GROQ_AVAILABLE_MODELS: List[str] = [
+    "llama-3.3-70b-versatile",   # best quality
+    "llama-3.1-8b-instant",      # fastest
+    "mixtral-8x7b-32768",        # long context
+]
+
 SUPPORTED_EXTENSIONS: List[str] = [".pdf", ".docx", ".txt"]
 
 SESSION_KEYS = {
@@ -64,9 +70,18 @@ class Settings:
     # Ollama
     ollama_host:    str   = field(default_factory=lambda: os.getenv("OLLAMA_HOST", "http://localhost:11434"))
     default_model:  str   = field(default_factory=lambda: os.getenv("DEFAULT_MODEL", "mistral"))
+    embedding_model: str  = field(default_factory=lambda: os.getenv("EMBEDDING_MODEL", "nomic-embed-text"))
     temperature:    float = field(default_factory=lambda: _float("TEMPERATURE", "0.2"))
     top_p:          float = field(default_factory=lambda: _float("TOP_P", "0.95"))
     repeat_penalty: float = field(default_factory=lambda: _float("REPEAT_PENALTY", "1.1"))
+
+    # LLM provider — "ollama" (local, free, private) or "groq" (hosted, no
+    # install required for end users). Embeddings stay 100% local either way
+    # (sentence-transformers), so no second API key is ever required.
+    llm_provider:   str            = field(default_factory=lambda: os.getenv("LLM_PROVIDER", "ollama").lower())
+    groq_api_key:   str | None     = field(default_factory=lambda: os.getenv("GROQ_API_KEY") or None)
+    groq_model:     str            = field(default_factory=lambda: os.getenv("GROQ_MODEL", "llama-3.1-8b-instant"))
+    local_embedding_model: str     = field(default_factory=lambda: os.getenv("LOCAL_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"))
 
     # RAG
     chunk_size:      int   = field(default_factory=lambda: _int("CHUNK_SIZE", "1000"))
@@ -105,6 +120,13 @@ class Settings:
             raise ValueError(f"MMR_LAMBDA must be 0–1, got {self.mmr_lambda}")
         if self.search_type not in ("mmr", "similarity"):
             raise ValueError(f"SEARCH_TYPE must be 'mmr' or 'similarity', got {self.search_type!r}")
+        if self.llm_provider not in ("ollama", "groq"):
+            raise ValueError(f"LLM_PROVIDER must be 'ollama' or 'groq', got {self.llm_provider!r}")
+        if self.llm_provider == "groq" and not self.groq_api_key:
+            raise ValueError(
+                "LLM_PROVIDER=groq requires GROQ_API_KEY to be set. "
+                "Get a free key at https://console.groq.com/keys"
+            )
 
     def validate(self) -> dict[str, bool]:
         """Runtime checks (writable paths etc.)"""
@@ -123,7 +145,9 @@ class Settings:
 
     def summary(self) -> dict:
         return {
-            "model":        self.default_model,
+            "llm_provider": self.llm_provider,
+            "model":        self.groq_model if self.llm_provider == "groq" else self.default_model,
+            "groq_key":     "set (hidden)" if self.groq_api_key else "not set",
             "host":         self.ollama_host,
             "temperature":  self.temperature,
             "chunk_size":   self.chunk_size,
