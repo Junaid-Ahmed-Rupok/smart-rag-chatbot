@@ -15,7 +15,7 @@ else:
 
 from design.components import apply_professional_theme, ds
 from Rag import init_rag
-from Config import APP_ICON, APP_NAME, APP_VERSION, bootstrap, cfg  # <-- ADDED APP_VERSION HERE
+from Config import APP_ICON, APP_NAME, APP_VERSION, bootstrap, cfg
 import Session
 
 # ── Session state ────────────────────────────────────────────────────────────
@@ -118,12 +118,23 @@ def main():
         # Generate response
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
-                # Placeholder response - you'll connect this to your RAG pipeline
-                response = "I'm ready to answer! I just need to be connected to the RAG pipeline implementation."
                 
-                # If you have a RAG chain:
-                # if st.session_state.rag_pipeline:
-                #     response = st.session_state.rag_pipeline.invoke(prompt)
+                # ── ACTUAL RAG PIPELINE LOGIC ──
+                if st.session_state.rag_pipeline:
+                    try:
+                        # Invoke the pipeline with the user's question
+                        response = st.session_state.rag_pipeline.invoke(prompt)
+                        
+                        # Depending on your Rag.py, it might return a dict. 
+                        # If it returns a string, this works fine.
+                        if isinstance(response, dict) and "answer" in response:
+                            response = response["answer"]
+                    except Exception as e:
+                        response = f"An error occurred while processing your question: {str(e)}"
+                else:
+                    # Fallback if pipeline isn't ready (e.g., no documents uploaded yet)
+                    response = "Please upload a document first so I can answer your question based on its content."
+                # ──────────────────────────────────
                 
                 st.markdown(response)
                 st.session_state.messages.append({"role": "assistant", "content": response})
