@@ -20,7 +20,7 @@ from langchain_community.embeddings import OllamaEmbeddings
 from langchain_community.llms import Ollama
 from langchain_community.vectorstores import FAISS
 
-from settings import SESSION_KEYS, cfg
+from Config import SESSION_KEYS, cfg
 
 log = logging.getLogger(__name__)
 
@@ -166,13 +166,14 @@ class RAGPipeline:
 
         self.init_models()
 
+        search_kwargs: dict[str, Any] = {"k": cfg.retrieval_k}
+        if cfg.search_type == "mmr":
+            search_kwargs["fetch_k"] = cfg.retrieval_fetch_k
+            search_kwargs["lambda_mult"] = cfg.mmr_lambda
+
         retriever = self.vector_store.as_retriever(
             search_type=cfg.search_type,
-            search_kwargs={
-                "k":      cfg.retrieval_k,
-                "fetch_k": cfg.retrieval_fetch_k,
-                "lambda_mult": cfg.mmr_lambda,
-            },
+            search_kwargs=search_kwargs,
         )
 
         memory = ConversationBufferWindowMemory(
