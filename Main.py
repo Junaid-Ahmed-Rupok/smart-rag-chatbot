@@ -13,10 +13,9 @@ else:
 # ── IMPORT REST OF APP ──────────────────────────────────────────────────────
 # Now import everything else as normal
 
-from design.components import apply_professional_theme, ds
-from Rag import init_rag
+from design.components import apply_professional_theme
+from Rag import init_rag, get_rag_pipeline  # Corrected import
 from Config import APP_ICON, APP_NAME, APP_VERSION, bootstrap, cfg
-import Session
 
 # ── Session state ────────────────────────────────────────────────────────────
 
@@ -88,9 +87,36 @@ def main():
             label_visibility="collapsed"
         )
 
+        # ── PROCESS FILES LOGIC ──────────────────────────────────────────────
         if uploaded_files:
-            # This part handles file processing logic (you can adapt this based on your Rag.py)
-            pass
+            # Get the current pipeline or create one
+            pipeline = get_rag_pipeline(cfg.groq_model)
+            
+            # Track new files to avoid re-processing
+            new_files = []
+            for file in uploaded_files:
+                # Check if we've already processed this file by name
+                if file.name not in st.session_state.processed_files:
+                    new_files.append(file)
+            
+            if new_files:
+                with st.spinner(f"Processing {len(new_files)} document(s)..."):
+                    try:
+                        # Process the documents using the pipeline's method
+                        pipeline.process_documents(new_files)
+                        
+                        # Add file names to session state so we don't process them again
+                        for file in new_files:
+                            st.session_state.processed_files.add(file.name)
+                        
+                        # Store the pipeline back into session state
+                        st.session_state.rag_pipeline = pipeline
+                        
+                        # Refresh the page to update the Docs counter
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error processing files: {str(e)}")
+        # ──────────────────────────────────────────────────────────────────────
 
         st.caption(f"{cfg.max_upload_mb}MB per file • PDF, DOCX, TXT")
 
@@ -122,13 +148,9 @@ def main():
                 # ── ACTUAL RAG PIPELINE LOGIC ──
                 if st.session_state.rag_pipeline:
                     try:
-                        # Invoke the pipeline with the user's question
-                        response = st.session_state.rag_pipeline.invoke(prompt)
-                        
-                        # Depending on your Rag.py, it might return a dict. 
-                        # If it returns a string, this works fine.
-                        if isinstance(response, dict) and "answer" in response:
-                            response = response["answer"]
+                        # Use the pipeline's ask() method
+                        result = st.session_state.rag_pipeline.ask(prompt)
+                        response = result["answer"]
                     except Exception as e:
                         response = f"An error occurred while processing your question: {str(e)}"
                 else:
