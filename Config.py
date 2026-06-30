@@ -4,6 +4,7 @@ Import: from Config import cfg, AVAILABLE_MODELS, SUPPORTED_EXTENSIONS
 """
 
 import os
+import streamlit as st  # <--- NEW: Import Streamlit to access secrets
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List
@@ -11,6 +12,10 @@ from typing import List
 from dotenv import load_dotenv
 
 load_dotenv(override=False)
+
+# Inject Streamlit secrets into environment variables so os.getenv() can find them
+if "GROQ_API_KEY" in st.secrets:
+    os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
 
 
 # ── Constants (never change at runtime) ──────────────────────────────────────
