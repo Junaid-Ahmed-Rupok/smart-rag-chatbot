@@ -1,5 +1,13 @@
 """
-Rag.py — RAG pipeline using Ollama (local, free, no API key).
+Rag.py — RAG pipeline.
+
+Chat model: Groq's hosted API (fast, free-tier, no local install — this is
+what makes the app a one-command `streamlit run` for end users) or, if
+configured, a local Ollama model.
+
+Embeddings: always a small local sentence-transformers model. Groq has no
+embeddings endpoint, so this is the one piece that always runs on-device —
+but it ships as a normal pip dependency, no separate server required.
 """
 
 import logging
@@ -16,9 +24,10 @@ from langchain_community.document_loaders import (
     PyPDFLoader,
     TextLoader,
 )
-from langchain_community.embeddings import OllamaEmbeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings, OllamaEmbeddings
 from langchain_community.llms import Ollama
 from langchain_community.vectorstores import FAISS
+from langchain_groq import ChatGroq
 
 from Config import SESSION_KEYS, cfg
 
@@ -36,15 +45,17 @@ _LOADERS: dict[str, type] = {
 
 class RAGPipeline:
     """
-    Local RAG pipeline backed by Ollama + FAISS.
+    RAG pipeline backed by FAISS, with a swappable chat-model provider.
 
     Design note — embeddings vs. chat model are intentionally decoupled:
-    embeddings always use `cfg.embedding_model` (a fixed, dedicated
-    embedding model such as nomic-embed-text), while the chat model is
-    whatever the user picks in the sidebar and can change freely via
-    `set_chat_model()`. This means switching the active chat model
-    mid-session never invalidates the vector store — only the LLM and
-    the conversation chain are rebuilt.
+    embeddings always use a fixed local sentence-transformers model
+    (`cfg.local_embedding_model`), while the chat model comes from
+    whichever provider is configured (`cfg.llm_provider`: "groq" or
+    "ollama") and can change freely via `set_chat_model()`. This means
+    switching the active chat model mid-session never invalidates the
+    vector store — only the LLM and the conversation chain are rebuilt.
+    Embeddings being provider-independent also means a model switch
+    (or even a provider switch) never re-triggers re-embedding.
 
     Raises exceptions on failure — never calls Streamlit directly.
     The caller (Sidebar.py / Chat.py) is responsible for surfacing
@@ -53,11 +64,11 @@ class RAGPipeline:
 
     def __init__(self, chat_model: str) -> None:
         self.chat_model:    str = chat_model
-        self.embedding_model: str = cfg.embedding_model
+        self.provider:      str = cfg.llm_provider
 
-        self.embeddings:   OllamaEmbeddings | None = None
-        self.llm:          Ollama | None            = None
-        self.vector_store: FAISS | None             = None
+        self.embeddings:   HuggingFaceEmbeddings | None = None
+        self.llm:          ChatGroq | Ollama | None     = None
+        self.vector_store: FAISS | None                 = None
         self.chain:        ConversationalRetrievalChain | None = None
         self._processed:   set[str] = set()
 
@@ -85,21 +96,31 @@ class RAGPipeline:
     def init_models(self) -> None:
         """Lazy-init embeddings and LLM. Safe to call multiple times."""
         if self.embeddings is None:
-            self.embeddings = OllamaEmbeddings(
-                model=self.embedding_model,
-                base_url=cfg.ollama_host,
+            self.embeddings = HuggingFaceEmbeddings(
+                model_name=cfg.local_embedding_model,
+                model_kwargs={"device": "cpu"},
+                encode_kwargs={"normalize_embeddings": True},
             )
-            log.debug("Embeddings initialised: %s", self.embedding_model)
+            log.debug("Embeddings initialised (local): %s", cfg.local_embedding_model)
 
         if self.llm is None:
-            self.llm = Ollama(
-                model=self.chat_model,
-                base_url=cfg.ollama_host,
-                temperature=cfg.temperature,
-                top_p=cfg.top_p,
-                repeat_penalty=cfg.repeat_penalty,
-            )
-            log.debug("LLM initialised: %s (temp=%.2f)", self.chat_model, cfg.temperature)
+            if self.provider == "groq":
+                self.llm = ChatGroq(
+                    model=self.chat_model,
+                    api_key=cfg.groq_api_key,
+                    temperature=cfg.temperature,
+                    model_kwargs={"top_p": cfg.top_p},
+                )
+                log.debug("LLM initialised: groq/%s (temp=%.2f)", self.chat_model, cfg.temperature)
+            else:
+                self.llm = Ollama(
+                    model=self.chat_model,
+                    base_url=cfg.ollama_host,
+                    temperature=cfg.temperature,
+                    top_p=cfg.top_p,
+                    repeat_penalty=cfg.repeat_penalty,
+                )
+                log.debug("LLM initialised: ollama/%s (temp=%.2f)", self.chat_model, cfg.temperature)
 
     # ── Document processing ───────────────────────────────────────────────────
 
@@ -264,6 +285,17 @@ class RAGPipeline:
 
         return {"answer": result["answer"], "sources": sources}
 
+    def ask_direct(self, question: str) -> str:
+        """
+        Bare chat-model call, bypassing retrieval — used when no documents
+        are indexed yet. Normalizes the return type across providers:
+        Ollama's legacy LLM interface returns a plain str, while ChatGroq
+        (a chat model) returns an AIMessage whose text lives in `.content`.
+        """
+        self.init_models()
+        result = self.llm.invoke(question)
+        return result.content if hasattr(result, "content") else result
+
     # ── Housekeeping ──────────────────────────────────────────────────────────
 
     def clear(self) -> None:
@@ -292,7 +324,7 @@ def get_rag_pipeline(chat_model: str) -> RAGPipeline:
     current: RAGPipeline | None = st.session_state.get(SESSION_KEYS["rag_pipeline"])
 
     if current is None:
-        log.info("Creating new RAG pipeline (chat_model=%s, embedding_model=%s)", chat_model, cfg.embedding_model)
+        log.info("Creating new RAG pipeline (provider=%s, chat_model=%s, embedding_model=%s)", cfg.llm_provider, chat_model, cfg.local_embedding_model)
         current = RAGPipeline(chat_model)
         st.session_state[SESSION_KEYS["rag_pipeline"]] = current
     else:
