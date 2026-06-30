@@ -1,6 +1,6 @@
 """
-app.py — Smart RAG Chatbot entry point.
-Run: streamlit run app.py
+Main.py — Smart RAG Chatbot entry point.
+Run: streamlit run Main.py
 """
 
 import logging
@@ -11,8 +11,8 @@ import requests
 import streamlit as st
 
 from design.components import apply_professional_theme, ds
-from rag import get_rag_pipeline, init_rag
-from settings import APP_ICON, APP_NAME, APP_VERSION, SESSION_KEYS, cfg, bootstrap
+from Rag import get_rag_pipeline, init_rag
+from Config import APP_ICON, APP_NAME, APP_VERSION, SESSION_KEYS, cfg, bootstrap
 
 log = logging.getLogger(__name__)
 
