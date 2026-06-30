@@ -3,6 +3,7 @@ Professional Component Library
 Enhanced: Dark mode, animations, new components
 """
 
+import html
 import streamlit as st
 from typing import Optional, List, Dict, Any
 from datetime import datetime
@@ -351,13 +352,19 @@ class DesignSystem:
             "info":    ("var(--blue-100)",   "var(--blue-900)",  "var(--blue-500)",  "ℹ"),
         }
         bg, fg, border_c, icon = palettes.get(type, palettes["info"])
-        body_html = f'<div class="ds-alert-body" style="color:{fg}">{body}</div>' if body else ""
+        # title/body can carry exception text (e.g. "Failed to process file:
+        # <name>") that embeds user-controlled filenames — escape both.
+        safe_title = html.escape(title)
+        body_html = (
+            f'<div class="ds-alert-body" style="color:{fg}">{html.escape(body)}</div>'
+            if body else ""
+        )
         st.markdown(
             f"""
             <div class="ds-alert" style="background:{bg};border-color:{border_c}">
                 <span class="ds-alert-icon" style="color:{border_c}">{icon}</span>
                 <div>
-                    <div class="ds-alert-title" style="color:{fg}">{title}</div>
+                    <div class="ds-alert-title" style="color:{fg}">{safe_title}</div>
                     {body_html}
                 </div>
             </div>
@@ -374,13 +381,13 @@ class DesignSystem:
         caption: Optional[str] = None,
     ):
         """Styled HTML table with hover rows."""
-        th_cells = "".join(f"<th>{h}</th>" for h in headers)
+        th_cells = "".join(f"<th>{html.escape(str(h))}</th>" for h in headers)
         tr_rows = ""
         for row in rows:
-            tds = "".join(f"<td>{cell}</td>" for cell in row)
+            tds = "".join(f"<td>{html.escape(str(cell))}</td>" for cell in row)
             tr_rows += f"<tr>{tds}</tr>"
         cap_html = (
-            f'<caption style="font-size:.75rem;color:var(--text-muted);text-align:left;padding-bottom:.5rem">{caption}</caption>'
+            f'<caption style="font-size:.75rem;color:var(--text-muted);text-align:left;padding-bottom:.5rem">{html.escape(caption)}</caption>'
             if caption else ""
         )
         st.markdown(
@@ -416,15 +423,18 @@ class DesignSystem:
 
     @staticmethod
     def source_card(filename: str, preview: str = ""):
+        # filename/preview originate from user-uploaded files and must never
+        # be trusted as HTML — escape before interpolating into markup.
+        safe_filename = html.escape(filename)
         preview_html = (
             f'<div style="font-size:.75rem;color:var(--text-muted);margin-top:.25rem">'
-            f'{preview[:120]}…</div>'
+            f'{html.escape(preview[:120])}…</div>'
             if preview else ""
         )
         st.markdown(
             f"""
             <div class="source-document">
-                <div style="font-weight:600;font-size:.875rem">📄 {filename}</div>
+                <div style="font-weight:600;font-size:.875rem">📄 {safe_filename}</div>
                 {preview_html}
             </div>
             """,
