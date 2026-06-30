@@ -15,7 +15,7 @@ else:
 
 from design.components import apply_professional_theme, ds
 from Rag import init_rag
-from Config import APP_ICON, APP_NAME, bootstrap, cfg
+from Config import APP_ICON, APP_NAME, APP_VERSION, bootstrap, cfg  # <-- ADDED APP_VERSION HERE
 import Session
 
 # ── Session state ────────────────────────────────────────────────────────────
