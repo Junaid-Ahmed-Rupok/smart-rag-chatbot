@@ -13,6 +13,9 @@ from typing import Optional
 
 import requests
 import streamlit as st
+from groq import APIConnectionError as GroqConnectionError
+from groq import AuthenticationError as GroqAuthError
+from groq import RateLimitError as GroqRateLimitError
 
 from design.components import ds
 from Rag import get_rag_pipeline
@@ -113,8 +116,7 @@ def handle_prompt(prompt: str, model: str) -> None:
                     answer  = result["answer"]
                     sources = result.get("sources", [])
                 else:
-                    pipeline.init_models()
-                    answer = pipeline.llm.invoke(prompt)
+                    answer = pipeline.ask_direct(prompt)
 
             st.markdown(answer)
 
@@ -122,6 +124,21 @@ def handle_prompt(prompt: str, model: str) -> None:
                 with st.expander(f"Sources ({len(sources)})", expanded=False):
                     for src in sources:
                         ds.source_card(src)
+
+        except GroqAuthError:
+            answer = "Invalid or missing Groq API key. Check GROQ_API_KEY in your .env file."
+            log.error("Groq authentication failed")
+            ds.alert("API key error", answer, "error")
+
+        except GroqRateLimitError:
+            answer = "Groq rate limit reached. Wait a moment and try again."
+            log.warning("Groq rate limit hit")
+            ds.alert("Rate limited", answer, "error")
+
+        except GroqConnectionError:
+            answer = "Couldn't reach Groq's API. Check your internet connection."
+            log.warning("Groq connection error")
+            ds.alert("Connection lost", answer, "error")
 
         except requests.ConnectionError:
             answer = "Lost connection to Ollama. Make sure `ollama serve` is still running."
