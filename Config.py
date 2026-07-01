@@ -150,11 +150,16 @@ class Settings:
             raise ValueError(f"SEARCH_TYPE must be 'mmr' or 'similarity', got {self.search_type!r}")
         if self.llm_provider not in ("ollama", "groq"):
             raise ValueError(f"LLM_PROVIDER must be 'ollama' or 'groq', got {self.llm_provider!r}")
-        if self.llm_provider == "groq" and not self.groq_api_key:
-            raise ValueError(
-                "LLM_PROVIDER=groq requires GROQ_API_KEY to be set. "
-                "Get a free key at https://console.groq.com/keys"
-            )
+        # NOTE: we intentionally do NOT raise here if llm_provider == "groq"
+        # and groq_api_key is missing. Settings() is instantiated at import
+        # time (see `cfg = Settings()` below), before Streamlit has drawn
+        # anything — raising here used to crash the entire app on startup
+        # (sidebar included) with a bare traceback instead of a usable UI.
+        # Sidebar.py already has a graceful fallback for this: _probe_groq()
+        # will fail (empty/invalid key -> non-200 response), and the UI
+        # shows a "Groq unreachable" badge with a troubleshooting expander
+        # telling the user to set GROQ_API_KEY. So we just let groq_api_key
+        # be None/empty here and let that existing path handle it.
         if self.session_ttl_minutes < 1:
             raise ValueError("SESSION_TTL_MINUTES must be >= 1")
 
