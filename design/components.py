@@ -475,12 +475,11 @@ def chat_bubble(
 # ── App bootstrap ─────────────────────────────────────────────────────────────
 
 def apply_professional_theme():
-    st.set_page_config(
-        page_title="Smart RAG Chatbot",
-        page_icon="🤖",
-        layout="wide",
-        initial_sidebar_state="expanded",
-    )
+    """
+    Injects chrome/theme CSS only. Does NOT call st.set_page_config() —
+    that must be called exactly once per app, by the entry point
+    (Main.main()), before any other Streamlit command runs.
+    """
     st.markdown(
         "<style>#MainMenu,footer,header{visibility:hidden}</style>",
         unsafe_allow_html=True,
