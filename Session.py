@@ -20,7 +20,7 @@ import uuid
 
 import streamlit as st
 
-from Config import SESSION_KEYS
+from Config import SESSION_KEYS, cfg
 
 log = logging.getLogger(__name__)
 
@@ -31,6 +31,10 @@ _DEFAULTS: dict = {
     SESSION_KEYS["session_id"]:      None,
 }
 
+# Fixed id used only when cfg.local_demo_mode is True (see Config.py).
+# Never used on a shared deployment — see the warning on that flag.
+_LOCAL_DEMO_SESSION_ID = "local-demo"
+
 
 # ── Lifecycle ───────────────────────────────────────────────────────────────────
 
@@ -40,19 +44,32 @@ def init() -> None:
     for key, default in _DEFAULTS.items():
         st.session_state.setdefault(key, default)
 
-    # Assigned once per browser session — used to scope this user's
-    # on-disk vector store so concurrent users never share an index.
     if st.session_state[SESSION_KEYS["session_id"]] is None:
-        st.session_state[SESSION_KEYS["session_id"]] = uuid.uuid4().hex
-        log.debug("New session_id assigned: %s", st.session_state[SESSION_KEYS["session_id"]])
+        if cfg.local_demo_mode:
+            # Fixed id — every run on this laptop finds the same on-disk
+            # index, no URL/bookmark required. Only safe because this
+            # mode is opt-in and must stay off for shared deployments.
+            sid = _LOCAL_DEMO_SESSION_ID
+        else:
+            # Recover the session id from the URL if present (survives a
+            # full browser refresh, unlike session_state) — otherwise
+            # mint a new one and stash it in the URL so future refreshes
+            # find it too.
+            sid = st.query_params.get("sid")
+            if not sid:
+                sid = uuid.uuid4().hex
+                st.query_params["sid"] = sid
+
+        st.session_state[SESSION_KEYS["session_id"]] = sid
+        log.debug("session_id resolved: %s (local_demo_mode=%s)", sid, cfg.local_demo_mode)
 
 
 # ── Session identity ─────────────────────────────────────────────────────────
 
 def session_id() -> str:
-    """Stable per-browser-session identifier. Used to namespace persisted
+    """Stable per-session identifier. Used to namespace persisted
     (on-disk) vector stores so one user's documents are never visible to
-    another user on a shared deployment."""
+    another user on a shared deployment — unless local_demo_mode is on."""
     return st.session_state[SESSION_KEYS["session_id"]]
 
 
