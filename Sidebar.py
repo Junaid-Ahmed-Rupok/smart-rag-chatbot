@@ -179,7 +179,7 @@ def _render_actions() -> None:
             st.rerun()
     with col2:
         if st.button("Reset all", use_container_width=True):
-            delete_persisted_store()  # <-- No session_id argument
+            delete_persisted_store(Session.get_session_id())
             Session.reset_all()
             st.rerun()
 
