@@ -9,15 +9,13 @@ Embeddings: always a small local sentence-transformers model. Groq has no
 embeddings endpoint, so this is the one piece that always runs on-device —
 but it ships as a normal pip dependency, no separate server required.
 
-Persistence: the FAISS index (and the list of indexed filenames) is saved
-to disk under cfg.vector_store_path, namespaced by Session.session_id() so
-concurrent users on a shared deployment never read or write each other's
-documents. On Streamlit Cloud this survives a browser refresh within the
-same running container, but is NOT durable across redeploys/reboots —
-that would require actual cloud storage (S3, Pinecone, pgvector, etc).
+Persistence: the FAISS index is optionally saved to disk under
+cfg.vector_store_path, namespaced by Session.session_id() so concurrent
+users on a shared deployment never read or write each other's documents.
+Note that on ephemeral hosts (e.g. Streamlit Cloud), this survives only
+for the lifetime of the running container — it is not durable storage.
 """
 
-import json
 import logging
 import shutil
 import tempfile
@@ -141,25 +139,22 @@ class RAGPipeline:
         return Path(cfg.vector_store_path) / session_id
 
     def save(self, session_id: str) -> None:
-        """Persist the current FAISS index (and the list of indexed
-        filenames) to disk. No-op if nothing is indexed yet. Failures are
-        logged, not raised — persistence is a nice-to-have, it should
-        never break an otherwise-successful upload."""
+        """Persist the current FAISS index to disk. No-op if nothing is
+        indexed yet. Failures are logged, not raised — persistence is a
+        nice-to-have, it should never break an otherwise-successful upload."""
         if self.vector_store is None:
             return
         try:
             path = self._store_dir(session_id)
             path.mkdir(parents=True, exist_ok=True)
             self.vector_store.save_local(str(path))
-            (path / "processed_files.json").write_text(json.dumps(sorted(self._processed)))
             log.info("Vector store persisted to %s", path)
         except Exception:
             log.exception("Failed to persist vector store for session %s", session_id)
 
     def load(self, session_id: str) -> bool:
-        """Load a previously persisted FAISS index (and its filename list)
-        for this session, if one exists. Returns True if a store was
-        loaded, False otherwise."""
+        """Load a previously persisted FAISS index for this session, if one
+        exists. Returns True if a store was loaded, False otherwise."""
         path = self._store_dir(session_id)
         if not (path / "index.faiss").exists():
             return False
@@ -171,20 +166,11 @@ class RAGPipeline:
             self.vector_store = FAISS.load_local(
                 str(path), self.embeddings, allow_dangerous_deserialization=True
             )
-            meta_path = path / "processed_files.json"
-            if meta_path.exists():
-                self._processed = set(json.loads(meta_path.read_text()))
-            log.info("Vector store loaded from %s (%d file(s))", path, len(self._processed))
+            log.info("Vector store loaded from %s", path)
             return True
         except Exception:
             log.exception("Failed to load persisted vector store for session %s", session_id)
             return False
-
-    @property
-    def processed_filenames(self) -> set[str]:
-        """Read-only view of filenames indexed in this pipeline (including
-        any restored from a persisted store)."""
-        return set(self._processed)
 
     # ── Document processing ───────────────────────────────────────────────────
 
@@ -391,15 +377,14 @@ def get_rag_pipeline(chat_model: str) -> RAGPipeline:
 
     On first creation, attempts to load a previously persisted index for
     this session_id (e.g. after a page refresh within the same running
-    container) and restores the sidebar's file list to match.
+    container).
     """
     current: RAGPipeline | None = st.session_state.get(SESSION_KEYS["rag_pipeline"])
 
     if current is None:
         log.info("Creating new RAG pipeline (provider=%s, chat_model=%s, embedding_model=%s)", cfg.llm_provider, chat_model, cfg.local_embedding_model)
         current = RAGPipeline(chat_model)
-        if current.load(Session.session_id()):
-            Session.mark_processed(sorted(current.processed_filenames))
+        current.load(Session.session_id())
         st.session_state[SESSION_KEYS["rag_pipeline"]] = current
     else:
         current.set_chat_model(chat_model)
