@@ -32,7 +32,8 @@ def get_session_id() -> str:
     """
     A short id unique to this browser session, used to scope each
     visitor's persisted vector store to their own directory so
-    documents never leak between users on a shared deployment.
+    documents never leak between users or between separate chats
+    on a shared deployment.
     """
     if _SESSION_ID_KEY not in st.session_state:
         st.session_state[_SESSION_ID_KEY] = uuid.uuid4().hex[:12]
