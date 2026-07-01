@@ -49,7 +49,10 @@ SESSION_KEYS = {
     "uploaded_files":  "uploaded_files_list",
     "chain":           "conversation_chain",
     "ollama_status":   "ollama_connection_status",
-    # "session_id" key removed entirely
+    # Note: "session_id" is intentionally NOT routed through this table —
+    # Session.get_session_id() manages it directly. It exists purely to
+    # scope each visitor's persisted vector store to their own directory
+    # (see Rag._store_path), not as chat/app state.
 }
 
 
@@ -72,6 +75,12 @@ def _path(key: str, default: str) -> Path:
 class Settings:
     # App
     debug: bool = field(default_factory=lambda: _bool("DEBUG"))
+    secret_key: str = field(default_factory=lambda: os.getenv("SECRET_KEY", "change-me-before-deploy"))
+    # When True, all sessions share one fixed vector-store path (convenient
+    # for a solo local demo). When False (default), each browser session
+    # gets its own isolated vector store so visitors can never see each
+    # other's uploaded documents. NEVER set True on a shared/public deploy.
+    local_demo_mode: bool = field(default_factory=lambda: _bool("LOCAL_DEMO_MODE"))
 
     # Ollama
     ollama_host:    str   = field(default_factory=lambda: os.getenv("OLLAMA_HOST", "http://localhost:11434"))
