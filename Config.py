@@ -49,6 +49,7 @@ SESSION_KEYS = {
     "uploaded_files":  "uploaded_files_list",
     "chain":           "conversation_chain",
     "ollama_status":   "ollama_connection_status",
+    "session_id":      "app_session_id",
 }
 
 
