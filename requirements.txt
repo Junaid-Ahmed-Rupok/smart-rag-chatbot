@@ -11,7 +11,7 @@ langchain-groq>=0.1.5,<0.2.0
 groq>=0.9.0                            # Python client; used directly for friendlier error types
 
 # ── Embeddings (always local — Groq has no embeddings endpoint) ──────────────
-sentence-transformers>=2.7.0,<3.0.0    # pulls in torch; first run downloads the model (~80MB)
+sentence-transformers>=2.7.0,<6.0.0    # pulls in torch; first run downloads the model (~80MB)
 
 # ── Vector store ──────────────────────────────────────────────────────────────
 faiss-cpu>=1.8.0,<2.0.0
