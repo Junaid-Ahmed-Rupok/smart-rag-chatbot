@@ -245,7 +245,7 @@ class DesignSystem:
         )
         st.markdown(
             f"""
-            <div style="margin-bottom:2rem;animation:fade-up 300ms cubic-bezier(.4,0,.2,1) both">
+            <div style="padding:1rem 0">
                 <div style="display:flex;align-items:center">
                     {icon_html}
                     <h1 style="color:var(--blue-500);margin:0;font-size:2rem;font-weight:700">{title}</h1>
@@ -481,7 +481,11 @@ def apply_professional_theme():
     (Main.main()), before any other Streamlit command runs.
     """
     st.markdown(
-        "<style>#MainMenu,footer,header{visibility:hidden}</style>",
+        "<style>"
+        "#MainMenu,footer{visibility:hidden}"
+        "header{background:transparent!important}"
+        "header [data-testid='stToolbar']{visibility:hidden}"
+        "</style>",
         unsafe_allow_html=True,
     )
     DesignSystem.inject_theme()
