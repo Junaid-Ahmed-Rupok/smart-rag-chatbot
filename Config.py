@@ -52,7 +52,7 @@ SESSION_KEYS = {
     # Note: "session_id" is intentionally NOT routed through this table —
     # Session.get_session_id() manages it directly. It exists purely to
     # scope each visitor's persisted vector store to their own directory
-    # (see Rag._store_path), not as chat/app state.
+    # (see cfg.session_store_path), not as chat/app state.
 }
 
 
@@ -108,8 +108,19 @@ class Settings:
     # Files
     max_upload_mb:      int  = field(default_factory=lambda: _int("MAX_UPLOAD_SIZE_MB", "200"))
     vector_store_type:  str  = field(default_factory=lambda: os.getenv("VECTOR_STORE_TYPE", "faiss"))
-    vector_store_path:  Path = field(default_factory=lambda: _path("VECTOR_STORE_PATH", "./data/vector_store"))
+
+    # Root directory that HOLDS every session's vector store, one
+    # sub-folder per session_id: <vector_store_root>/<session_id>/
+    # This is what makes uploads session-scoped instead of shared/global.
+    vector_store_root: Path = field(default_factory=lambda: _path("VECTOR_STORE_PATH", "./data/vector_store"))
     data_path:          Path = field(default_factory=lambda: Path("./data"))
+
+    # How long (minutes) a session's uploaded documents are kept on disk
+    # after the last activity in that session. The janitor (see
+    # Rag.cleanup_stale_sessions) deletes any session folder older than
+    # this on every app run — this is what makes files "vanish" once the
+    # chat is over, since Streamlit gives no reliable tab-close hook.
+    session_ttl_minutes: int = field(default_factory=lambda: _int("SESSION_TTL_MINUTES", "30"))
 
     # Derived
     @property
@@ -119,6 +130,10 @@ class Settings:
     @property
     def chunk_separators(self) -> List[str]:
         return ["\n\n", "\n", " ", ""]
+
+    def session_store_path(self, session_id: str) -> Path:
+        """The on-disk folder that holds ONE session's FAISS index."""
+        return self.vector_store_root / session_id
 
     def __post_init__(self):
         if not 0.0 <= self.temperature <= 2.0:
@@ -140,6 +155,8 @@ class Settings:
                 "LLM_PROVIDER=groq requires GROQ_API_KEY to be set. "
                 "Get a free key at https://console.groq.com/keys"
             )
+        if self.session_ttl_minutes < 1:
+            raise ValueError("SESSION_TTL_MINUTES must be >= 1")
 
     def validate(self) -> dict[str, bool]:
         return {
@@ -148,7 +165,7 @@ class Settings:
             "retrieval_k_valid":      1 <= self.retrieval_k <= 20,
             "temperature_valid":      0 <= self.temperature <= 2,
             "data_path_writable":     self.data_path.exists() and os.access(self.data_path, os.W_OK),
-            "vector_store_writable":  self.vector_store_path.exists() and os.access(self.vector_store_path, os.W_OK),
+            "vector_store_writable":  self.vector_store_root.exists() and os.access(self.vector_store_root, os.W_OK),
         }
 
     def is_ready(self) -> bool:
@@ -167,6 +184,7 @@ class Settings:
             "search_type":  self.search_type,
             "memory":       self.memory_length,
             "upload_limit": f"{self.max_upload_mb} MB",
+            "session_ttl":  f"{self.session_ttl_minutes} min",
         }
 
 
@@ -178,7 +196,7 @@ def bootstrap(cfg: Settings) -> None:
         cfg.data_path,
         cfg.data_path / "raw",
         cfg.data_path / "processed",
-        cfg.vector_store_path,
+        cfg.vector_store_root,
         Path("./logs"),
     ]:
         p.mkdir(parents=True, exist_ok=True)
