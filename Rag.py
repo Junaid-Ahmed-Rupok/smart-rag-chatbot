@@ -8,9 +8,16 @@ configured, a local Ollama model.
 Embeddings: always a small local sentence-transformers model. Groq has no
 embeddings endpoint, so this is the one piece that always runs on-device —
 but it ships as a normal pip dependency, no separate server required.
+
+Persistence: the FAISS index is optionally saved to disk under
+cfg.vector_store_path, namespaced by Session.session_id() so concurrent
+users on a shared deployment never read or write each other's documents.
+Note that on ephemeral hosts (e.g. Streamlit Cloud), this survives only
+for the lifetime of the running container — it is not durable storage.
 """
 
 import logging
+import shutil
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -29,6 +36,7 @@ from langchain_community.llms import Ollama
 from langchain_community.vectorstores import FAISS
 from langchain_groq import ChatGroq
 
+import Session
 from Config import SESSION_KEYS, cfg
 
 log = logging.getLogger(__name__)
@@ -122,6 +130,48 @@ class RAGPipeline:
                 )
                 log.debug("LLM initialised: ollama/%s (temp=%.2f)", self.chat_model, cfg.temperature)
 
+    # ── Persistence ───────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _store_dir(session_id: str) -> Path:
+        """On-disk location for one session's FAISS index. Namespaced by
+        session_id so concurrent users never share (or leak into) an index."""
+        return Path(cfg.vector_store_path) / session_id
+
+    def save(self, session_id: str) -> None:
+        """Persist the current FAISS index to disk. No-op if nothing is
+        indexed yet. Failures are logged, not raised — persistence is a
+        nice-to-have, it should never break an otherwise-successful upload."""
+        if self.vector_store is None:
+            return
+        try:
+            path = self._store_dir(session_id)
+            path.mkdir(parents=True, exist_ok=True)
+            self.vector_store.save_local(str(path))
+            log.info("Vector store persisted to %s", path)
+        except Exception:
+            log.exception("Failed to persist vector store for session %s", session_id)
+
+    def load(self, session_id: str) -> bool:
+        """Load a previously persisted FAISS index for this session, if one
+        exists. Returns True if a store was loaded, False otherwise."""
+        path = self._store_dir(session_id)
+        if not (path / "index.faiss").exists():
+            return False
+        try:
+            self.init_models()
+            # Safe here because we only ever load indexes this same app
+            # previously wrote to this same namespaced path — never
+            # arbitrary user-supplied files.
+            self.vector_store = FAISS.load_local(
+                str(path), self.embeddings, allow_dangerous_deserialization=True
+            )
+            log.info("Vector store loaded from %s", path)
+            return True
+        except Exception:
+            log.exception("Failed to load persisted vector store for session %s", session_id)
+            return False
+
     # ── Document processing ───────────────────────────────────────────────────
 
     def process_documents(self, files: list) -> int:
@@ -206,6 +256,10 @@ class RAGPipeline:
 
         if failed:
             log.warning("Indexing completed with %d failed file(s): %s", len(failed), failed)
+
+        # Persist to disk so this session's index survives a page refresh
+        # within the same running container.
+        self.save(Session.session_id())
 
         return len(all_chunks)
 
@@ -320,14 +374,30 @@ def get_rag_pipeline(chat_model: str) -> RAGPipeline:
     is reused with its chat model swapped in place — embeddings, the
     FAISS index, and indexed-file bookkeeping are preserved, so a model
     switch no longer silently discards indexed documents.
+
+    On first creation, attempts to load a previously persisted index for
+    this session_id (e.g. after a page refresh within the same running
+    container).
     """
     current: RAGPipeline | None = st.session_state.get(SESSION_KEYS["rag_pipeline"])
 
     if current is None:
         log.info("Creating new RAG pipeline (provider=%s, chat_model=%s, embedding_model=%s)", cfg.llm_provider, chat_model, cfg.local_embedding_model)
         current = RAGPipeline(chat_model)
+        current.load(Session.session_id())
         st.session_state[SESSION_KEYS["rag_pipeline"]] = current
     else:
         current.set_chat_model(chat_model)
 
     return current
+
+
+def delete_persisted_store(session_id: str) -> None:
+    """Delete the on-disk FAISS index for a given session, if any. Called
+    from Sidebar.py's 'Reset all' so a full reset also clears disk state —
+    kept as a module-level function (rather than inside Session.py) to
+    avoid a circular import between Session.py and Rag.py."""
+    path = Path(cfg.vector_store_path) / session_id
+    if path.exists():
+        shutil.rmtree(path, ignore_errors=True)
+        log.info("Deleted persisted vector store: %s", path)
