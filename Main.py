@@ -12,7 +12,7 @@ else:
 from design.components import apply_professional_theme
 from Rag import init_rag, get_rag_pipeline
 from Config import APP_ICON, APP_NAME, APP_VERSION, bootstrap, cfg
-import Session  # <-- Import Session
+import Session
 
 
 # ── Main ─────────────────────────────────────────────────────────────────────
