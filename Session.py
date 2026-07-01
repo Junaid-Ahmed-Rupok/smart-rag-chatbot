@@ -16,6 +16,7 @@ authority on what that value means.
 """
 
 import logging
+import uuid
 
 import streamlit as st
 
@@ -27,6 +28,7 @@ _DEFAULTS: dict = {
     SESSION_KEYS["messages"]:        [],
     SESSION_KEYS["processed_files"]: set(),
     SESSION_KEYS["ollama_status"]:   False,
+    SESSION_KEYS["session_id"]:      None,
 }
 
 
@@ -37,6 +39,21 @@ def init() -> None:
     to call on every rerun, since setdefault is a no-op once a key exists."""
     for key, default in _DEFAULTS.items():
         st.session_state.setdefault(key, default)
+
+    # Assigned once per browser session — used to scope this user's
+    # on-disk vector store so concurrent users never share an index.
+    if st.session_state[SESSION_KEYS["session_id"]] is None:
+        st.session_state[SESSION_KEYS["session_id"]] = uuid.uuid4().hex
+        log.debug("New session_id assigned: %s", st.session_state[SESSION_KEYS["session_id"]])
+
+
+# ── Session identity ─────────────────────────────────────────────────────────
+
+def session_id() -> str:
+    """Stable per-browser-session identifier. Used to namespace persisted
+    (on-disk) vector stores so one user's documents are never visible to
+    another user on a shared deployment."""
+    return st.session_state[SESSION_KEYS["session_id"]]
 
 
 # ── Messages ──────────────────────────────────────────────────────────────────
@@ -95,7 +112,11 @@ def set_ollama_status(is_running: bool) -> None:
 
 def reset_all() -> None:
     """Wipes chat, indexed documents, and the cached RAG pipeline. The next
-    question will rebuild everything from a clean slate."""
+    question will rebuild everything from a clean slate.
+
+    Note: this does NOT delete the persisted on-disk vector store — that's
+    handled by Rag.delete_persisted_store(), called separately from
+    Sidebar.py, to avoid a circular import between Session.py and Rag.py."""
     st.session_state[SESSION_KEYS["messages"]]        = []
     st.session_state[SESSION_KEYS["processed_files"]] = set()
     st.session_state.pop(SESSION_KEYS["rag_pipeline"], None)
