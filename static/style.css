@@ -1,8 +1,69 @@
 /* ============================================================
    Smart RAG Chatbot — Design System
-   Tokens live in components.py. This file styles Streamlit
-   chrome and defines the visual language of the product.
+   Base tokens (color, radius, shadow) live in design/components.py.
+   This file extends them with a signature visual language and
+   styles every piece of Streamlit chrome the product surfaces.
+
+   Design language
+   ────────────────
+   RAG is a product about *provenance* — every answer traces back
+   to a document. The signature move here is treating retrieved
+   sources like numbered footnotes in a paper: quietly academic,
+   quietly confident. Everything else (type, motion, glow) stays
+   restrained so that citation moment reads as the one considered
+   flourish, not one of many.
+
+   Type pairing:  Space Grotesk (display / structure)  +  Inter (body)
+                  JetBrains Mono (source refs, code, data)
+   Accent:        brand blue → violet gradient, used only on the
+                  primary action and the retrieval/"thinking" state.
    ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+
+/* ── 0. Extended design tokens ───────────────────────────────
+   Additive only — never redeclares a token owned by
+   design/components.py, so both files stay in sync. */
+
+:root {
+    --font-display: 'Space Grotesk', 'Inter', -apple-system, sans-serif;
+    --font-body:    'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono:    'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+
+    --accent-violet:      #7C3AED;
+    --accent-violet-soft: #EDE9FE;
+    --accent-teal:        #0D9488;
+    --accent-teal-soft:   #CCFBF1;
+
+    --gradient-brand: linear-gradient(135deg, var(--blue-500) 0%, var(--accent-violet) 100%);
+    --gradient-veil:  radial-gradient(circle at 15% 0%, rgba(30,136,229,.08), transparent 45%),
+                       radial-gradient(circle at 85% 0%, rgba(124,58,237,.06), transparent 40%);
+
+    --shadow-glow:  0 8px 28px -8px rgba(30,136,229,.35);
+    --shadow-float: 0 1px 2px rgba(15,23,42,.04), 0 12px 24px -12px rgba(15,23,42,.14);
+    --ease-spring:  cubic-bezier(.34, 1.56, .64, 1);
+}
+
+[data-theme="dark"] {
+    --accent-violet-soft: #2E1065;
+    --accent-teal-soft:   #042F2E;
+    --gradient-veil: radial-gradient(circle at 15% 0%, rgba(96,165,250,.10), transparent 45%),
+                      radial-gradient(circle at 85% 0%, rgba(167,139,250,.08), transparent 40%);
+    --shadow-glow:  0 8px 28px -8px rgba(96,165,250,.45);
+    --shadow-float: 0 1px 2px rgba(0,0,0,.3), 0 12px 24px -12px rgba(0,0,0,.55);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --accent-violet-soft: #2E1065;
+        --accent-teal-soft:   #042F2E;
+        --gradient-veil: radial-gradient(circle at 15% 0%, rgba(96,165,250,.10), transparent 45%),
+                          radial-gradient(circle at 85% 0%, rgba(167,139,250,.08), transparent 40%);
+        --shadow-glow:  0 8px 28px -8px rgba(96,165,250,.45);
+        --shadow-float: 0 1px 2px rgba(0,0,0,.3), 0 12px 24px -12px rgba(0,0,0,.55);
+    }
+}
 
 
 /* ── 1. Streamlit chrome reset ───────────────────────────────── */
@@ -13,13 +74,20 @@
     padding-top: 2.5rem   !important;
     padding-bottom: 7rem  !important;
     max-width: 900px;
+    counter-reset: source-ref;
+}
+
+html, body, [class*="css"] {
+    font-family: var(--font-body);
 }
 
 
 /* ── 2. Surfaces ─────────────────────────────────────────────── */
 
 .stApp {
-    background: var(--surface-alt);
+    background-color: var(--surface-alt);
+    background-image: var(--gradient-veil);
+    background-attachment: fixed;
 }
 
 [data-testid="stSidebar"] {
@@ -28,44 +96,79 @@
 }
 
 [data-testid="stSidebar"] > div:first-child {
-    padding: 1.5rem 1rem 2rem;
+    padding: 1.5rem 1.125rem 2rem;
+}
+
+/* Brand mark — the app title Main.py renders as an h1 inside the sidebar */
+[data-testid="stSidebar"] h1 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.375rem !important;
+    letter-spacing: -.01em;
+    background: var(--gradient-brand);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: .25rem !important;
+}
+
+[data-testid="stSidebar"] h3 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: .8125rem !important;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--text-muted) !important;
+    margin-top: 1.5rem !important;
+    margin-bottom: .5rem !important;
+}
+
+[data-testid="stSidebar"] hr {
+    border-color: var(--border);
+    margin: 1.25rem 0;
 }
 
 
 /* ── 3. Typography ───────────────────────────────────────────── */
 
 /*
-   We intentionally leave h1–h6 unstyled globally.
-   ds.header() in components.py controls the headings we own.
-   Streamlit's internal chrome headings are left untouched.
+   We intentionally leave h1–h6 unstyled globally in the main
+   column. ds.header() in components.py controls the headings we
+   own there; the sidebar rules above are the one deliberate
+   exception, since that's the app's brand mark.
 */
 
 p, li {
     color: var(--text-primary);
+    font-family: var(--font-body);
     line-height: 1.7;
 }
 
 .stMarkdown a {
     color: var(--blue-500);
     text-decoration: underline;
+    text-decoration-color: rgba(30,136,229,.35);
     text-underline-offset: 3px;
-    transition: opacity 150ms ease;
+    transition: opacity 150ms ease, text-decoration-color 150ms ease;
 }
 
 .stMarkdown a:hover {
-    opacity: .75;
+    opacity: .8;
+    text-decoration-color: currentColor;
 }
 
 code {
+    font-family: var(--font-mono);
     font-size: .8125rem;
     background: var(--surface-alt);
-    color: var(--text-primary);
+    color: var(--accent-violet);
     border: 1px solid var(--border);
     border-radius: 4px;
     padding: .1em .4em;
 }
 
 pre {
+    font-family: var(--font-mono);
     font-size: .8125rem;
     background: var(--surface-alt);
     border: 1px solid var(--border);
@@ -73,12 +176,14 @@ pre {
     padding: 1rem 1.25rem;
     overflow-x: auto;
     line-height: 1.6;
+    box-shadow: inset 0 1px 2px rgba(15,23,42,.03);
 }
 
 pre code {
     background: none;
     border: none;
     padding: 0;
+    color: var(--text-primary);
     font-size: inherit;
 }
 
@@ -86,35 +191,40 @@ pre code {
 /* ── 4. Buttons ──────────────────────────────────────────────── */
 
 .stButton > button {
+    font-family: var(--font-display);
     border-radius: var(--radius-md);
     font-size: .875rem;
-    font-weight: 500;
-    height: 2.375rem;
+    font-weight: 600;
+    letter-spacing: .01em;
+    height: 2.5rem;
     transition:
-        background  180ms ease,
-        border-color 180ms ease,
-        transform    180ms ease,
-        box-shadow   180ms ease;
+        background  220ms var(--ease-spring),
+        border-color 220ms ease,
+        transform    220ms var(--ease-spring),
+        box-shadow   220ms ease,
+        filter       220ms ease;
 }
 
-/* Primary */
+/* Primary — the one place the brand gradient is spent */
 .stButton > button[kind="primary"] {
-    background: var(--blue-500);
+    background: var(--gradient-brand);
+    background-size: 160% 160%;
+    background-position: 0% 50%;
     color: #fff;
     border: 1px solid transparent;
-    box-shadow: 0 1px 2px rgba(0,0,0,.12);
+    box-shadow: var(--shadow-glow);
 }
 
 .stButton > button[kind="primary"]:hover {
-    filter: brightness(1.07);
+    background-position: 100% 50%;
     transform: translateY(-1px);
-    box-shadow: 0 3px 8px rgba(30,136,229,.25);
+    box-shadow: 0 10px 32px -6px rgba(30,136,229,.42);
 }
 
 .stButton > button[kind="primary"]:active {
-    transform: translateY(0);
-    filter: brightness(.97);
-    box-shadow: none;
+    transform: translateY(0) scale(.99);
+    filter: brightness(.96);
+    box-shadow: var(--shadow-glow);
 }
 
 /* Secondary / default */
@@ -130,6 +240,13 @@ pre code {
     background: var(--surface-alt);
     border-color: var(--blue-500);
     color: var(--blue-500);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-float);
+}
+
+.stButton > button[kind="secondary"]:active,
+.stButton > button:not([kind]):active {
+    transform: translateY(0);
 }
 
 .stButton > button:focus-visible {
@@ -140,12 +257,12 @@ pre code {
 
 /* ── 5. Inputs & selects ─────────────────────────────────────── */
 
-/* Shared input shell */
 [data-testid="stTextInput"] input,
 [data-testid="stTextArea"] textarea,
 [data-testid="stSelectbox"] > div > div {
     background: var(--surface)       !important;
     color: var(--text-primary)       !important;
+    font-family: var(--font-body)    !important;
     border: 1px solid var(--border)  !important;
     border-radius: var(--radius-md)  !important;
     transition: border-color 150ms ease, box-shadow 150ms ease !important;
@@ -153,19 +270,20 @@ pre code {
 
 [data-testid="stTextInput"] input:focus,
 [data-testid="stTextArea"] textarea:focus {
-    border-color: var(--blue-500)                   !important;
-    box-shadow: 0 0 0 3px rgba(30,136,229,.12)      !important;
-    outline: none                                    !important;
+    border-color: var(--blue-500)               !important;
+    box-shadow: 0 0 0 3px rgba(30,136,229,.14)  !important;
+    outline: none                                !important;
 }
 
-/* Labels */
 [data-testid="stTextInput"] label,
 [data-testid="stTextArea"] label,
 [data-testid="stSelectbox"] label {
-    color: var(--text-muted) !important;
-    font-size: .8125rem      !important;
-    font-weight: 500         !important;
-    letter-spacing: .02em   !important;
+    color: var(--text-muted)      !important;
+    font-family: var(--font-display) !important;
+    font-size: .75rem             !important;
+    font-weight: 600              !important;
+    letter-spacing: .05em         !important;
+    text-transform: uppercase     !important;
 }
 
 
@@ -175,24 +293,42 @@ pre code {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    padding: 1rem 1.125rem;
-    margin-bottom: .625rem;
-    animation: msg-in 220ms cubic-bezier(.4,0,.2,1) both;
+    padding: 1.125rem 1.25rem;
+    margin-bottom: .75rem;
+    box-shadow: var(--shadow-float);
+    animation: msg-in 320ms var(--ease-spring) both;
+    transition: box-shadow 200ms ease, border-color 200ms ease;
 }
 
-/* Distinct left accent per role */
+[data-testid="stChatMessage"]:hover {
+    box-shadow: 0 2px 4px rgba(15,23,42,.04), 0 16px 32px -16px rgba(15,23,42,.18);
+}
+
+/* Distinct treatment per role — user asks, assistant answers */
 [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {
     border-left: 3px solid var(--blue-500);
+    background: linear-gradient(180deg, rgba(30,136,229,.035), transparent 60%), var(--surface);
 }
 
 [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) {
-    border-left: 3px solid var(--border);
+    border-left: 3px solid var(--accent-violet);
+}
+
+/* Avatar — small halo so the assistant reads as "the system", not a person */
+[data-testid="stChatMessageAvatarAssistant"] {
+    background: var(--gradient-brand) !important;
+    box-shadow: 0 0 0 3px var(--accent-violet-soft);
+}
+
+[data-testid="stChatMessageAvatarUser"] {
+    box-shadow: 0 0 0 3px var(--blue-100);
 }
 
 /* Message content typography */
 [data-testid="stChatMessage"] p {
+    font-family: var(--font-body);
     font-size: .9375rem;
-    line-height: 1.65;
+    line-height: 1.7;
     margin-bottom: .625rem;
 }
 
@@ -201,39 +337,50 @@ pre code {
 }
 
 @keyframes msg-in {
-    from { opacity: 0; transform: translateY(6px); }
-    to   { opacity: 1; transform: translateY(0);   }
+    from { opacity: 0; transform: translateY(10px) scale(.99); }
+    to   { opacity: 1; transform: translateY(0)    scale(1);   }
 }
 
 
 /* ── 7. Chat input ───────────────────────────────────────────── */
 
 [data-testid="stChatInput"] {
-    background: var(--surface);
+    background: linear-gradient(180deg, transparent, var(--surface-alt) 40%);
     border-top: 1px solid var(--border);
-    padding: .75rem 1rem;
+    padding: .875rem 1rem;
 }
 
 [data-testid="stChatInput"] textarea {
-    background: var(--surface-alt) !important;
-    color: var(--text-primary)     !important;
-    border: 1px solid var(--border)!important;
-    border-radius: var(--radius-lg)!important;
-    font-size: .9375rem            !important;
-    line-height: 1.5               !important;
+    background: var(--surface)      !important;
+    color: var(--text-primary)      !important;
+    font-family: var(--font-body)   !important;
+    border: 1.5px solid var(--border) !important;
+    border-radius: var(--radius-lg) !important;
+    font-size: .9375rem             !important;
+    line-height: 1.5                !important;
+    box-shadow: var(--shadow-float) !important;
     transition:
-        border-color 150ms ease !important,
-        box-shadow   150ms ease !important;
+        border-color 200ms ease !important,
+        box-shadow   200ms ease !important;
 }
 
 [data-testid="stChatInput"] textarea:focus {
-    border-color: var(--blue-500)               !important;
-    box-shadow: 0 0 0 3px rgba(30,136,229,.12)  !important;
-    outline: none                                !important;
+    border-color: var(--blue-500)                               !important;
+    box-shadow: 0 0 0 4px rgba(30,136,229,.14), var(--shadow-float) !important;
+    outline: none                                                !important;
 }
 
 [data-testid="stChatInput"] textarea::placeholder {
     color: var(--text-muted) !important;
+}
+
+[data-testid="stChatInput"] button {
+    transition: transform 200ms var(--ease-spring), color 150ms ease;
+}
+
+[data-testid="stChatInput"] button:hover {
+    color: var(--blue-500);
+    transform: scale(1.08);
 }
 
 
@@ -243,16 +390,18 @@ pre code {
     border: 1.5px dashed var(--border);
     border-radius: var(--radius-lg);
     background: var(--surface-alt);
-    transition: border-color 200ms ease, background 200ms ease;
+    transition: border-color 200ms ease, background 200ms ease, box-shadow 200ms ease;
 }
 
 [data-testid="stFileUploader"]:hover {
     border-color: var(--blue-500);
     background: var(--surface);
+    box-shadow: 0 0 0 4px rgba(30,136,229,.08);
 }
 
 [data-testid="stFileUploaderDropzone"] {
     color: var(--text-muted);
+    font-family: var(--font-body);
     font-size: .875rem;
 }
 
@@ -260,10 +409,17 @@ pre code {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
-    padding: .375rem .75rem;
+    padding: .5rem .75rem;
     margin: .375rem 0;
+    font-family: var(--font-mono);
     font-size: .8125rem;
     color: var(--text-primary);
+    transition: border-color 150ms ease, transform 150ms ease;
+}
+
+[data-testid="stFileUploaderFile"]:hover {
+    border-color: var(--accent-teal);
+    transform: translateX(2px);
 }
 
 
@@ -274,14 +430,16 @@ pre code {
     border: 1px solid var(--border) !important;
     border-radius: var(--radius-md) !important;
     color: var(--text-primary)      !important;
+    font-family: var(--font-display) !important;
     font-size: .875rem              !important;
-    font-weight: 500                !important;
-    transition: background 150ms ease, border-color 150ms ease !important;
+    font-weight: 600                !important;
+    transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease !important;
 }
 
 .streamlit-expanderHeader:hover {
     background: var(--surface-alt)  !important;
     border-color: var(--blue-500)   !important;
+    box-shadow: var(--shadow-float) !important;
 }
 
 .streamlit-expanderContent {
@@ -289,7 +447,7 @@ pre code {
     border: 1px solid var(--border) !important;
     border-top: none                !important;
     border-radius: 0 0 var(--radius-md) var(--radius-md) !important;
-    padding: .875rem 1rem           !important;
+    padding: 1rem 1.125rem          !important;
 }
 
 
@@ -300,18 +458,28 @@ pre code {
     border-radius: var(--radius-md);
     border-left-width: 3px;
     padding: .875rem 1rem;
+    font-family: var(--font-body);
     font-size: .875rem;
+    box-shadow: var(--shadow-float);
+    animation: msg-in 260ms var(--ease-spring) both;
 }
 
 
-/* ── 11. Spinner / status ────────────────────────────────────── */
+/* ── 11. Spinner / status — reads as "retrieving", not "loading" ── */
 
 [data-testid="stStatusWidget"] {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
+    font-family: var(--font-body);
     font-size: .875rem;
     color: var(--text-primary);
+    box-shadow: var(--shadow-float);
+}
+
+[data-testid="stSpinner"] > div {
+    border-top-color: var(--blue-500) !important;
+    border-right-color: var(--accent-violet) !important;
 }
 
 
@@ -329,10 +497,11 @@ pre code {
     background: transparent;
     border-radius: calc(var(--radius-md) - 2px);
     color: var(--text-muted);
-    font-size: .875rem;
-    font-weight: 500;
-    padding: .375rem 1rem;
-    transition: background 150ms ease, color 150ms ease;
+    font-family: var(--font-display);
+    font-size: .8125rem;
+    font-weight: 600;
+    padding: .4375rem 1rem;
+    transition: background 180ms ease, color 180ms ease;
     border: none;
 }
 
@@ -344,7 +513,7 @@ pre code {
 .stTabs [data-baseweb="tab"][aria-selected="true"] {
     background: var(--surface);
     color: var(--blue-500);
-    box-shadow: 0 1px 3px rgba(0,0,0,.08);
+    box-shadow: var(--shadow-float);
 }
 
 .stTabs [data-baseweb="tab-panel"] {
@@ -352,45 +521,83 @@ pre code {
 }
 
 
-/* ── 13. Source document card ────────────────────────────────── */
+/* ── 13. Source citation card — the signature element ───────────
+   Styled like a numbered footnote: a retrieved chunk earns a
+   reference number the moment it renders, monospace filename
+   for a "data provenance" feel, teal accent to read as
+   "evidence" rather than "action" (which owns the blue/violet). */
 
 .source-document {
+    position: relative;
     display: flex;
     align-items: flex-start;
-    gap: .625rem;
-    background: var(--surface-alt);
-    border-left: 3px solid var(--blue-500);
-    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-    padding: .625rem .875rem;
-    margin: .375rem 0;
+    gap: .75rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent-teal);
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    padding: .75rem .875rem .75rem 1rem;
+    margin: .5rem 0;
+    font-family: var(--font-body);
     font-size: .8125rem;
     color: var(--text-primary);
-    transition: background 150ms ease, transform 150ms ease;
+    box-shadow: var(--shadow-float);
+    transition: transform 200ms var(--ease-spring), box-shadow 200ms ease, border-color 200ms ease;
+    counter-increment: source-ref;
     cursor: default;
 }
 
+.source-document::before {
+    content: counter(source-ref);
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 1.375rem;
+    height: 1.375rem;
+    margin-top: .0625rem;
+    border-radius: var(--radius-pill);
+    background: var(--accent-teal-soft);
+    color: var(--accent-teal);
+    font-family: var(--font-mono);
+    font-size: .6875rem;
+    font-weight: 600;
+}
+
 .source-document:hover {
-    background: var(--surface);
-    transform: translateX(2px);
+    border-color: var(--accent-teal);
+    transform: translateX(3px);
+    box-shadow: 0 10px 24px -12px rgba(13,148,136,.35);
+}
+
+.source-document > div:first-of-type {
+    min-width: 0;
+}
+
+/* Filename line rendered by ds.source_card() — target its inline style hook */
+.source-document div[style*="font-weight:600"] {
+    font-family: var(--font-mono) !important;
+    font-weight: 600 !important;
+    letter-spacing: -.01em;
+    overflow-wrap: anywhere;
 }
 
 
 /* ── 14. Scrollbar ───────────────────────────────────────────── */
 
-::-webkit-scrollbar         { width: 5px; height: 5px; }
+::-webkit-scrollbar         { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track   { background: transparent; }
 ::-webkit-scrollbar-thumb   {
     background: var(--border);
     border-radius: 9999px;
     transition: background 150ms ease;
 }
-::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+::-webkit-scrollbar-thumb:hover { background: var(--blue-500); }
 
 
 /* ── 15. Selection ───────────────────────────────────────────── */
 
 ::selection {
-    background: rgba(30,136,229,.18);
+    background: rgba(30,136,229,.2);
     color: var(--text-primary);
 }
 
@@ -400,6 +607,7 @@ pre code {
 :focus-visible {
     outline: 2px solid var(--blue-500);
     outline-offset: 2px;
+    border-radius: 2px;
 }
 
 
@@ -410,13 +618,18 @@ pre code {
     [data-testid="stChatInput"],
     .stButton { display: none !important; }
 
-    .stApp { background: #fff !important; }
+    .stApp { background: #fff !important; background-image: none !important; }
 
     [data-testid="stChatMessage"] {
         break-inside: avoid;
         box-shadow: none;
         border: 1px solid #d1d5db;
         animation: none;
+    }
+
+    .source-document {
+        box-shadow: none;
+        break-inside: avoid;
     }
 }
 
@@ -427,5 +640,15 @@ pre code {
     *, *::before, *::after {
         animation-duration:  .01ms !important;
         transition-duration: .01ms !important;
+        background-position: 0% 50% !important;
     }
+}
+
+
+/* ── 19. Small screens ───────────────────────────────────────── */
+
+@media (max-width: 640px) {
+    .block-container { padding-left: 1rem; padding-right: 1rem; }
+    [data-testid="stChatMessage"] { padding: .875rem 1rem; }
+    .source-document { flex-direction: row; }
 }
