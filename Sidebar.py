@@ -15,7 +15,7 @@ import streamlit as st
 
 import Session
 from design.components import ds
-from Rag import get_rag_pipeline
+from Rag import get_rag_pipeline, delete_persisted_store
 from Config import APP_NAME, APP_VERSION, GROQ_AVAILABLE_MODELS, cfg
 
 log = logging.getLogger(__name__)
@@ -193,6 +193,7 @@ def _render_actions() -> None:
             st.rerun()
     with col2:
         if st.button("Reset all", use_container_width=True):
+            delete_persisted_store(Session.session_id())
             Session.reset_all()
             st.rerun()
 
