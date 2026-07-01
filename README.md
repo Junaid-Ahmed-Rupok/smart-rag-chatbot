@@ -1,3 +1,4 @@
+markdown
 <div align="center">
 
 # 🤖 Smart RAG Chatbot
@@ -283,3 +284,4 @@ MIT — see [LICENSE](LICENSE).
 Built with [Streamlit](https://streamlit.io) · [LangChain](https://www.langchain.com) · [Groq](https://groq.com) · [FAISS](https://github.com/facebookresearch/faiss) · [sentence-transformers](https://www.sbert.net)
 
 </div>
+```
