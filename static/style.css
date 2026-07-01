@@ -7,19 +7,28 @@
    Design language
    ────────────────
    RAG is a product about *provenance* — every answer traces back
-   to a document. The signature move here is treating retrieved
-   sources like numbered footnotes in a paper: quietly academic,
-   quietly confident. Everything else (type, motion, glow) stays
-   restrained so that citation moment reads as the one considered
-   flourish, not one of many.
+   to a document. The signature move is treating retrieved sources
+   like numbered footnotes in a paper: quietly academic, quietly
+   confident. The footnote numeral is set in a small serif
+   (Newsreader) — the one deliberate typographic accent — while
+   everything else stays geometric and restrained, so the citation
+   moment reads as the considered flourish, not one of many.
 
-   Type pairing:  Space Grotesk (display / structure)  +  Inter (body)
+   Type pairing:  Space Grotesk (display / structure)
+                  Inter (body)
                   JetBrains Mono (source refs, code, data)
-   Accent:        brand blue → violet gradient, used only on the
+                  Newsreader italic (citation numerals only)
+   Accent:        brand blue → violet gradient, spent only on the
                   primary action and the retrieval/"thinking" state.
+
+   Contrast note: every accent color used as *text or icon* (not
+   just background) has an explicit dark-mode value below — a
+   fixed hex read against a dark surface can silently drop under
+   WCAG AA, so nothing here relies on a light-mode hex "still
+   looking fine" in the dark theme.
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,wght@1,500;1,600&display=swap');
 
 
 /* ── 0. Extended design tokens ───────────────────────────────
@@ -30,7 +39,9 @@
     --font-display: 'Space Grotesk', 'Inter', -apple-system, sans-serif;
     --font-body:    'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     --font-mono:    'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+    --font-cite:    'Newsreader', Georgia, 'Times New Roman', serif;
 
+    /* Light-mode accent hues */
     --accent-violet:      #7C3AED;
     --accent-violet-soft: #EDE9FE;
     --accent-teal:        #0D9488;
@@ -42,26 +53,36 @@
 
     --shadow-glow:  0 8px 28px -8px rgba(30,136,229,.35);
     --shadow-float: 0 1px 2px rgba(15,23,42,.04), 0 12px 24px -12px rgba(15,23,42,.14);
+    --shadow-lift:  0 2px 6px rgba(15,23,42,.05), 0 22px 44px -20px rgba(15,23,42,.22);
     --ease-spring:  cubic-bezier(.34, 1.56, .64, 1);
 }
 
+/* Dark-mode overrides — brightened so every accent stays >= 4.5:1
+   against --surface / --surface-alt when used as text or an icon
+   color, not just as a background tint. */
 [data-theme="dark"] {
+    --accent-violet:      #B79CFB;  /* was #7C3AED — too dim as text on dark surfaces */
     --accent-violet-soft: #2E1065;
+    --accent-teal:        #2DD4BF;  /* was #0D9488 — same issue on the citation badge */
     --accent-teal-soft:   #042F2E;
     --gradient-veil: radial-gradient(circle at 15% 0%, rgba(96,165,250,.10), transparent 45%),
                       radial-gradient(circle at 85% 0%, rgba(167,139,250,.08), transparent 40%);
     --shadow-glow:  0 8px 28px -8px rgba(96,165,250,.45);
     --shadow-float: 0 1px 2px rgba(0,0,0,.3), 0 12px 24px -12px rgba(0,0,0,.55);
+    --shadow-lift:  0 2px 6px rgba(0,0,0,.35), 0 28px 52px -20px rgba(0,0,0,.6);
 }
 
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
+        --accent-violet:      #B79CFB;
         --accent-violet-soft: #2E1065;
+        --accent-teal:        #2DD4BF;
         --accent-teal-soft:   #042F2E;
         --gradient-veil: radial-gradient(circle at 15% 0%, rgba(96,165,250,.10), transparent 45%),
                           radial-gradient(circle at 85% 0%, rgba(167,139,250,.08), transparent 40%);
         --shadow-glow:  0 8px 28px -8px rgba(96,165,250,.45);
         --shadow-float: 0 1px 2px rgba(0,0,0,.3), 0 12px 24px -12px rgba(0,0,0,.55);
+        --shadow-lift:  0 2px 6px rgba(0,0,0,.35), 0 28px 52px -20px rgba(0,0,0,.6);
     }
 }
 
@@ -79,6 +100,8 @@
 
 html, body, [class*="css"] {
     font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
 }
 
 
@@ -106,10 +129,17 @@ html, body, [class*="css"] {
     font-size: 1.375rem !important;
     letter-spacing: -.01em;
     background: var(--gradient-brand);
+    background-size: 160% 160%;
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
     margin-bottom: .25rem !important;
+    animation: brand-sheen 6s ease-in-out infinite;
+}
+
+@keyframes brand-sheen {
+    0%, 100% { background-position: 0% 50%; }
+    50%      { background-position: 100% 50%; }
 }
 
 [data-testid="stSidebar"] h3 {
@@ -197,6 +227,8 @@ pre code {
     font-weight: 600;
     letter-spacing: .01em;
     height: 2.5rem;
+    position: relative;
+    overflow: hidden;
     transition:
         background  220ms var(--ease-spring),
         border-color 220ms ease,
@@ -301,17 +333,19 @@ pre code {
 }
 
 [data-testid="stChatMessage"]:hover {
-    box-shadow: 0 2px 4px rgba(15,23,42,.04), 0 16px 32px -16px rgba(15,23,42,.18);
+    box-shadow: var(--shadow-lift);
 }
 
 /* Distinct treatment per role — user asks, assistant answers */
 [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {
     border-left: 3px solid var(--blue-500);
+    border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) 4px;
     background: linear-gradient(180deg, rgba(30,136,229,.035), transparent 60%), var(--surface);
 }
 
 [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) {
     border-left: 3px solid var(--accent-violet);
+    border-radius: var(--radius-lg) var(--radius-lg) 4px var(--radius-lg);
 }
 
 /* Avatar — small halo so the assistant reads as "the system", not a person */
@@ -521,11 +555,58 @@ pre code {
 }
 
 
-/* ── 13. Source citation card — the signature element ───────────
+/* ── 13. Metric cards (ds.metric_card) — the recruiter's first
+   "trust" signal: Docs / Turns. A thin top rule and a firmer
+   lift on hover, no color noise beyond the existing brand blue. ── */
+
+.ds-card {
+    position: relative;
+    overflow: hidden;
+}
+
+.ds-card::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--gradient-brand);
+    opacity: 0;
+    transition: opacity 200ms ease;
+}
+
+.ds-card:hover::before {
+    opacity: 1;
+}
+
+.ds-card:hover {
+    box-shadow: var(--shadow-lift) !important;
+}
+
+
+/* ── 14. Status badge — a quiet pulse on "connected" states only,
+   so the one live signal in the sidebar reads as live. ── */
+
+.ds-badge {
+    transition: transform 150ms ease;
+}
+
+.ds-badge:has(span:first-child) span:first-child {
+    animation: dot-pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes dot-pulse {
+    0%, 100% { opacity: 1;  transform: scale(1);   }
+    50%      { opacity: .45; transform: scale(.85); }
+}
+
+
+/* ── 15. Source citation card — the signature element ───────────
    Styled like a numbered footnote: a retrieved chunk earns a
-   reference number the moment it renders, monospace filename
-   for a "data provenance" feel, teal accent to read as
-   "evidence" rather than "action" (which owns the blue/violet). */
+   reference number the moment it renders. The numeral itself is
+   set in Newsreader italic — a small serif detail that reads as
+   "citation," not "UI chrome" — while the filename stays
+   monospace for a data-provenance feel. Teal accent reads as
+   "evidence," keeping blue/violet reserved for actions. */
 
 .source-document {
     position: relative;
@@ -552,21 +633,27 @@ pre code {
     flex-shrink: 0;
     display: grid;
     place-items: center;
-    width: 1.375rem;
-    height: 1.375rem;
+    width: 1.5rem;
+    height: 1.5rem;
     margin-top: .0625rem;
     border-radius: var(--radius-pill);
     background: var(--accent-teal-soft);
     color: var(--accent-teal);
-    font-family: var(--font-mono);
-    font-size: .6875rem;
+    font-family: var(--font-cite);
+    font-style: italic;
+    font-size: .8125rem;
     font-weight: 600;
+    transition: transform 200ms var(--ease-spring);
 }
 
 .source-document:hover {
     border-color: var(--accent-teal);
     transform: translateX(3px);
     box-shadow: 0 10px 24px -12px rgba(13,148,136,.35);
+}
+
+.source-document:hover::before {
+    transform: scale(1.12);
 }
 
 .source-document > div:first-of-type {
@@ -582,7 +669,7 @@ pre code {
 }
 
 
-/* ── 14. Scrollbar ───────────────────────────────────────────── */
+/* ── 16. Scrollbar ───────────────────────────────────────────── */
 
 ::-webkit-scrollbar         { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track   { background: transparent; }
@@ -594,7 +681,7 @@ pre code {
 ::-webkit-scrollbar-thumb:hover { background: var(--blue-500); }
 
 
-/* ── 15. Selection ───────────────────────────────────────────── */
+/* ── 17. Selection ───────────────────────────────────────────── */
 
 ::selection {
     background: rgba(30,136,229,.2);
@@ -602,7 +689,7 @@ pre code {
 }
 
 
-/* ── 16. Focus ring (global) ─────────────────────────────────── */
+/* ── 18. Focus ring (global) ─────────────────────────────────── */
 
 :focus-visible {
     outline: 2px solid var(--blue-500);
@@ -611,7 +698,7 @@ pre code {
 }
 
 
-/* ── 17. Print ───────────────────────────────────────────────── */
+/* ── 19. Print ───────────────────────────────────────────────── */
 
 @media print {
     [data-testid="stSidebar"],
@@ -634,7 +721,7 @@ pre code {
 }
 
 
-/* ── 18. Reduced motion ──────────────────────────────────────── */
+/* ── 20. Reduced motion ──────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
@@ -645,7 +732,7 @@ pre code {
 }
 
 
-/* ── 19. Small screens ───────────────────────────────────────── */
+/* ── 21. Small screens ───────────────────────────────────────── */
 
 @media (max-width: 640px) {
     .block-container { padding-left: 1rem; padding-right: 1rem; }
