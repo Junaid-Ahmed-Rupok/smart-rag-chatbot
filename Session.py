@@ -3,11 +3,15 @@ Session.py — single source of truth for st.session_state access.
 """
 
 import logging
+import uuid
+
 import streamlit as st
 
 from Config import SESSION_KEYS
 
 log = logging.getLogger(__name__)
+
+_SESSION_ID_KEY = "session_id"
 
 _DEFAULTS: dict = {
     SESSION_KEYS["messages"]:        [],
@@ -22,6 +26,17 @@ def init() -> None:
     """Ensure all session keys exist with sane defaults."""
     for key, default in _DEFAULTS.items():
         st.session_state.setdefault(key, default)
+
+
+def get_session_id() -> str:
+    """
+    A short id unique to this browser session, used to scope each
+    visitor's persisted vector store to their own directory so
+    documents never leak between users on a shared deployment.
+    """
+    if _SESSION_ID_KEY not in st.session_state:
+        st.session_state[_SESSION_ID_KEY] = uuid.uuid4().hex[:12]
+    return st.session_state[_SESSION_ID_KEY]
 
 
 # ── Messages ──────────────────────────────────────────────────────────────────
