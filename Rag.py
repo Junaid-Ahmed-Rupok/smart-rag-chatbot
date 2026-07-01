@@ -5,6 +5,7 @@ Rag.py — RAG pipeline.
 import logging
 import shutil
 import tempfile
+import time
 from pathlib import Path
 from typing import Any
 
@@ -35,15 +36,23 @@ _LOADERS: dict[str, type] = {
     ".txt":  TextLoader,
 }
 
+# Marker file dropped in a session's store folder every time it's touched.
+# Its mtime is what the janitor uses to decide a session is stale.
+_ACTIVITY_MARKER = ".last_active"
+
 # ── Pipeline ──────────────────────────────────────────────────────────────────
 
 class RAGPipeline:
     """
     RAG pipeline backed by FAISS, with a swappable chat-model provider.
+    Persists to a folder scoped to a single browser session (see
+    Config.session_store_path) so uploaded documents never leak into,
+    or survive into, a different chat.
     """
 
-    def __init__(self, chat_model: str) -> None:
+    def __init__(self, chat_model: str, session_id: str) -> None:
         self.chat_model:    str = chat_model
+        self.session_id:    str = session_id
         self.provider:      str = cfg.llm_provider
 
         self.embeddings:   HuggingFaceEmbeddings | None = None
@@ -95,21 +104,25 @@ class RAGPipeline:
 
     # ── Persistence ───────────────────────────────────────────────────────────
 
+    def _store_path(self) -> Path:
+        return cfg.session_store_path(self.session_id)
+
     def save(self) -> None:
-        """Persist the current FAISS index to disk at the fixed path."""
+        """Persist the current FAISS index to this session's own folder."""
         if self.vector_store is None:
             return
         try:
-            path = cfg.vector_store_path
+            path = self._store_path()
             path.mkdir(parents=True, exist_ok=True)
             self.vector_store.save_local(str(path))
+            _touch_marker(path)
             log.info("Vector store persisted to %s", path)
         except Exception:
             log.exception("Failed to persist vector store")
 
     def load(self) -> bool:
-        """Load a previously persisted FAISS index from the fixed path."""
-        path = cfg.vector_store_path
+        """Load this session's previously persisted FAISS index, if any."""
+        path = self._store_path()
         if not (path / "index.faiss").exists():
             return False
         try:
@@ -117,6 +130,7 @@ class RAGPipeline:
             self.vector_store = FAISS.load_local(
                 str(path), self.embeddings, allow_dangerous_deserialization=True
             )
+            _touch_marker(path)
             log.info("Vector store loaded from %s", path)
             return True
         except Exception:
@@ -169,6 +183,10 @@ class RAGPipeline:
                 continue
 
             finally:
+                # The RAW uploaded file on disk (temp copy) is always wiped
+                # immediately after we've extracted its text — regardless
+                # of chat lifetime. Only the derived FAISS index sticks
+                # around, scoped to this session, until it expires/resets.
                 if tmp_path and tmp_path.exists():
                     tmp_path.unlink()
 
@@ -191,7 +209,7 @@ class RAGPipeline:
         if failed:
             log.warning("Indexing completed with %d failed file(s): %s", len(failed), failed)
 
-        # Persist to disk
+        # Persist to this session's own folder (also refreshes activity marker)
         self.save()
 
         return len(all_chunks)
@@ -202,12 +220,16 @@ class RAGPipeline:
         if self.chain is not None:
             return self.chain
 
-        if self.vector_store is None:
-            raise ValueError("Index is empty. Process documents before asking questions.")
-
         self.init_models()
 
-        search_kwargs: dict[str, Any] = {"k": cfg.retrieval_k}
+        memory = ConversationBufferWindowMemory(
+            k=cfg.memory_length,
+            memory_key="chat_history",
+            return_messages=True,
+            output_key="answer",
+        )
+
+        search_kwargs = {"k": cfg.retrieval_k}
         if cfg.search_type == "mmr":
             search_kwargs["fetch_k"] = cfg.retrieval_fetch_k
             search_kwargs["lambda_mult"] = cfg.mmr_lambda
@@ -217,42 +239,22 @@ class RAGPipeline:
             search_kwargs=search_kwargs,
         )
 
-        memory = ConversationBufferWindowMemory(
-            k=cfg.memory_length,
-            memory_key="chat_history",
-            return_messages=True,
-            output_key="answer",
-        )
-
         self.chain = ConversationalRetrievalChain.from_llm(
             llm=self.llm,
             retriever=retriever,
             memory=memory,
             return_source_documents=True,
-            verbose=cfg.debug,
         )
-        log.debug("Conversation chain built (model=%s, memory_k=%d)", self.chat_model, cfg.memory_length)
         return self.chain
 
-    # ── Inference ─────────────────────────────────────────────────────────────
-
     def ask(self, question: str) -> dict[str, Any]:
-        chain  = self._get_chain()
+        chain = self._get_chain()
         result = chain.invoke({"question": question})
 
-        seen: set[str]   = set()
-        sources: list[str] = []
-        for doc in result.get("source_documents", []):
-            src = doc.metadata.get("source", "unknown")
-            if src not in seen:
-                seen.add(src)
-                sources.append(src)
-
-        log.info(
-            "Question answered. Sources: %s | Answer length: %d chars",
-            sources,
-            len(result["answer"]),
-        )
+        sources = sorted({
+            doc.metadata.get("source", "unknown")
+            for doc in result.get("source_documents", [])
+        })
 
         return {"answer": result["answer"], "sources": sources}
 
@@ -277,12 +279,16 @@ def init_rag() -> None:
 
 
 def get_rag_pipeline(chat_model: str) -> RAGPipeline:
+    session_id = Session.get_session_id()
     current: RAGPipeline | None = st.session_state.get(SESSION_KEYS["rag_pipeline"])
 
     if current is None:
-        log.info("Creating new RAG pipeline (provider=%s, chat_model=%s, embedding_model=%s)", cfg.llm_provider, chat_model, cfg.local_embedding_model)
-        current = RAGPipeline(chat_model)
-        current.load()  # <-- No session_id argument
+        log.info(
+            "Creating new RAG pipeline (session=%s, provider=%s, chat_model=%s, embedding_model=%s)",
+            session_id, cfg.llm_provider, chat_model, cfg.local_embedding_model,
+        )
+        current = RAGPipeline(chat_model, session_id)
+        current.load()
         st.session_state[SESSION_KEYS["rag_pipeline"]] = current
     else:
         current.set_chat_model(chat_model)
@@ -290,9 +296,60 @@ def get_rag_pipeline(chat_model: str) -> RAGPipeline:
     return current
 
 
-def delete_persisted_store() -> None:
-    """Delete the on-disk FAISS index from the fixed path."""
-    path = cfg.vector_store_path
+def delete_persisted_store(session_id: str) -> None:
+    """Delete the on-disk FAISS index for one specific session."""
+    path = cfg.session_store_path(session_id)
     if path.exists():
         shutil.rmtree(path, ignore_errors=True)
-        log.info("Deleted persisted vector store: %s", path)
+        log.info("Deleted persisted vector store for session %s: %s", session_id, path)
+
+
+def touch_session_activity(session_id: str) -> None:
+    """
+    Refresh the "still alive" marker for a session's store folder, if it
+    exists. Call this once per app rerun so an ongoing chat never gets
+    swept up by the stale-session janitor while it's still in use.
+    """
+    path = cfg.session_store_path(session_id)
+    if path.exists():
+        _touch_marker(path)
+
+
+def cleanup_stale_sessions() -> int:
+    """
+    Janitor: deletes any session's persisted vector store once it has
+    gone longer than SESSION_TTL_MINUTES without activity — this is what
+    makes an uploaded PDF/DOCX vanish once its chat is actually over,
+    since Streamlit has no reliable "tab closed" signal to hook into.
+    Safe to call on every app boot; cheap when there's nothing stale.
+    """
+    root = cfg.vector_store_root
+    if not root.exists():
+        return 0
+
+    ttl_seconds = cfg.session_ttl_minutes * 60
+    now = time.time()
+    removed = 0
+
+    for session_dir in root.iterdir():
+        if not session_dir.is_dir():
+            continue
+        marker = session_dir / _ACTIVITY_MARKER
+        # Fall back to the directory's own mtime if the marker is missing
+        # (e.g. upgraded from an older version of the store).
+        last_active = marker.stat().st_mtime if marker.exists() else session_dir.stat().st_mtime
+
+        if now - last_active > ttl_seconds:
+            shutil.rmtree(session_dir, ignore_errors=True)
+            removed += 1
+            log.info("Janitor removed stale session store: %s", session_dir)
+
+    if removed:
+        log.info("Janitor cleanup complete: %d stale session(s) removed", removed)
+
+    return removed
+
+
+def _touch_marker(path: Path) -> None:
+    path.mkdir(parents=True, exist_ok=True)
+    (path / _ACTIVITY_MARKER).touch(exist_ok=True)
