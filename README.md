@@ -252,14 +252,25 @@ Contributions and suggestions welcome — open an issue or a PR.
 
 </div>
 
-**Specializations:** Predictive Analytics · Causal Inference · Explainable AI · NLP · RAG Systems
+**Specializations:** Statistical ML · Causal Inference · Trustworthy AI · Fairness-Aware ML · RAG Systems
 
-**Highlights:**
-- 🏆 Best Research Paper — APMEE 2025
-- 🎖️ Esteemed Alumni Award — YLRL, RUET 2024
-- ⭐ Perfect GPA (5.00/5.00) — SSC & HSC
-- 🎓 National Merit Scholarship — 2009 & 2013
-- 🌍 ML systems deployed across 150+ countries of data
+**Selected Research:**
+
+- 📄 **Ahmed, S.J.** et al. (2026). *Machine Learning for Crime Classification: A Fairness-Aware Approach to Class Imbalance.* Journal of Machine Learning and Applications, 2(1), 9–17. [DOI: 10.61577/jmla.2026.100002](https://doi.org/10.61577/jmla.2026.100002)
+- 📄 **Ahmed, S.J.** et al. (2026). *CF-EGAT: A Causal Fairness-Aware Equity Graph Attention Network for Country-Level Environmental Livability Classification.* SPECTRA 2026. 🏆 **1st Best Paper Award**
+- 📄 **Ahmed, S.J.** (2025). *Multi-Dimensional Statistical Similarity for Governance Classification: Beyond Arbitrary Thresholds.* APMEE 2025. 🏆 **Best Research Paper Award**
+
+**Other Deployed Projects:**
+
+- 🔬 [ReproHub](https://reproapp-8jb7vbhnqyltxq23bsr8xn.streamlit.app/) — Automated research reproducibility platform with composite scoring across 11 statistical tests
+- 📊 [StatsPro](https://statistical-analysis-app-7axetqtx75ncuu7fr8irxj.streamlit.app/) — AI-powered statistical analysis platform with automated CSV-to-report workflows
+
+**Honors:**
+🏆 1st Best Paper — SPECTRA 2026 &nbsp;·&nbsp;
+🏆 Best Research Paper — APMEE 2025 &nbsp;·&nbsp;
+🎖️ Esteemed Alumni Award — YLRL RUET 2024 &nbsp;·&nbsp;
+⭐ Perfect GPA 5.00/5.00 — SSC & HSC &nbsp;·&nbsp;
+🎓 National Merit Scholarship — 2009 & 2013
 
 ---
 
