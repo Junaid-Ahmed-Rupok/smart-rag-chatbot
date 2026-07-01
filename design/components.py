@@ -13,7 +13,7 @@ from pathlib import Path
 
 def load_css():
     """Load the external style.css file."""
-    css_path = Path(__file__).parent.parent / "style.css"
+    css_path = Path(__file__).parent.parent / "static" / "style.css"
     if css_path.exists():
         with open(css_path, "r") as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
@@ -490,4 +490,3 @@ def apply_professional_theme():
 
 # ── Global instance ───────────────────────────────────────────────────────────
 ds = DesignSystem()
-
