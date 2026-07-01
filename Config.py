@@ -73,13 +73,6 @@ class Settings:
     # App
     debug: bool = field(default_factory=lambda: _bool("DEBUG"))
 
-    # Local demo mode — uses a fixed session_id instead of a per-visitor
-    # UUID, so closing and reopening the app on your own laptop always
-    # finds the same persisted vector store, no URL/bookmark needed.
-    # MUST stay False on any shared/public deployment: it disables
-    # per-user isolation, so every visitor would share one index.
-    local_demo_mode: bool = field(default_factory=lambda: _bool("LOCAL_DEMO_MODE"))
-
     # Ollama
     ollama_host:    str   = field(default_factory=lambda: os.getenv("OLLAMA_HOST", "http://localhost:11434"))
     default_model:  str   = field(default_factory=lambda: os.getenv("DEFAULT_MODEL", "mistral"))
@@ -169,7 +162,6 @@ class Settings:
             "search_type":  self.search_type,
             "memory":       self.memory_length,
             "upload_limit": f"{self.max_upload_mb} MB",
-            "local_demo_mode": self.local_demo_mode,
         }
 
 
