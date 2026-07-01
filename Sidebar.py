@@ -1,15 +1,8 @@
 """
-Sidebar.py — branding, model selection, document upload, stats, and
-session controls.
-
-Owns the entire sidebar surface. Talks to Session.py for all state reads
-and writes (never touches st.session_state directly) and to Rag.py only
-to trigger indexing. Returns the selected model name so Main.py can pass
-it on to Chat.py.
+Sidebar.py — branding, model selection, document upload, stats, and session controls.
 """
 
 import logging
-
 import requests
 import streamlit as st
 
@@ -25,7 +18,6 @@ log = logging.getLogger(__name__)
 
 @st.cache_data(ttl=60, show_spinner=False)
 def _probe_groq(api_key: str) -> bool:
-    """Poll Groq once per minute to confirm the key/connection is good."""
     try:
         r = requests.get(
             "https://api.groq.com/openai/v1/models",
@@ -39,11 +31,6 @@ def _probe_groq(api_key: str) -> bool:
 
 @st.cache_data(ttl=60, show_spinner=False)
 def _probe_ollama(host: str) -> tuple[bool, list[str]]:
-    """
-    Poll Ollama once per minute. Returns (is_running, installed_model_names).
-    Cached so every script rerun (e.g. typing in chat_input) doesn't hammer
-    the local Ollama server with a fresh HTTP request.
-    """
     try:
         r = requests.get(f"{host}/api/tags", timeout=3)
         r.raise_for_status()
@@ -81,12 +68,11 @@ def _section_label(text: str) -> None:
 
 
 def _render_model_section() -> tuple[str | None, bool]:
-    """Returns (selected_model, provider_ready)."""
     _section_label("Model")
 
     if cfg.llm_provider == "groq":
         groq_ok = _probe_groq(cfg.groq_api_key)
-        Session.set_ollama_status(groq_ok)  # reused flag: "is the active provider reachable"
+        Session.set_ollama_status(groq_ok)
 
         if groq_ok:
             ds.status_badge("Groq connected", "success")
@@ -193,7 +179,7 @@ def _render_actions() -> None:
             st.rerun()
     with col2:
         if st.button("Reset all", use_container_width=True):
-            delete_persisted_store(Session.session_id())
+            delete_persisted_store()  # <-- No session_id argument
             Session.reset_all()
             st.rerun()
 
@@ -201,11 +187,6 @@ def _render_actions() -> None:
 # ── Entry point for Main.py ────────────────────────────────────────────────────
 
 def render() -> str | None:
-    """
-    Renders the full sidebar. Returns the selected model name, or None
-    if the active provider (Groq or Ollama) is unreachable or has no
-    available model.
-    """
     with st.sidebar:
         _render_brand()
         ds.divider()
