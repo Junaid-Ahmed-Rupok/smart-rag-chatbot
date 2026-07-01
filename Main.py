@@ -12,7 +12,7 @@ else:
 from design.components import apply_professional_theme
 from Rag import init_rag, get_rag_pipeline
 from Config import APP_ICON, APP_NAME, APP_VERSION, bootstrap, cfg
-import Session  # <-- Added import for Session
+import Session  # <-- Import Session
 
 
 # ── Main ─────────────────────────────────────────────────────────────────────
@@ -25,16 +25,16 @@ def main():
         initial_sidebar_state="expanded"
     )
 
-    # Bootstrap directories
-    bootstrap(cfg)
-
-    # Apply custom theme
-    apply_professional_theme()
-
-    # Initialize Session defaults (no UUID anymore, just ensures keys exist)
+    # 1. Initialize session state FIRST (creates all default keys)
     Session.init()
 
-    # Initialize RAG
+    # 2. Bootstrap directories
+    bootstrap(cfg)
+
+    # 3. Apply custom theme
+    apply_professional_theme()
+
+    # 4. Initialize RAG
     init_rag()
 
     # ── Header ────────────────────────────────────────────────────────────────
@@ -78,7 +78,6 @@ def main():
             
             new_files = []
             for file in uploaded_files:
-                # Use Session.processed_files() instead of direct st.session_state access
                 if file.name not in Session.processed_files():
                     new_files.append(file)
             
@@ -86,13 +85,8 @@ def main():
                 with st.spinner(f"Processing {len(new_files)} document(s)..."):
                     try:
                         pipeline.process_documents(new_files)
-                        
-                        # Use Session.mark_processed() to update state properly
                         Session.mark_processed([f.name for f in new_files])
-                        
-                        # Store the pipeline back into session state
                         st.session_state.rag_pipeline = pipeline
-                        
                         st.rerun()
                     except Exception as e:
                         st.error(f"Error processing files: {str(e)}")
