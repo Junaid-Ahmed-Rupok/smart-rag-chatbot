@@ -4,7 +4,7 @@ Import: from Config import cfg, AVAILABLE_MODELS, SUPPORTED_EXTENSIONS
 """
 
 import os
-import streamlit as st  # <--- NEW: Import Streamlit to access secrets
+import streamlit as st
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List
@@ -49,7 +49,7 @@ SESSION_KEYS = {
     "uploaded_files":  "uploaded_files_list",
     "chain":           "conversation_chain",
     "ollama_status":   "ollama_connection_status",
-    "session_id":      "app_session_id",
+    # "session_id" key removed entirely
 }
 
 
@@ -81,10 +81,7 @@ class Settings:
     top_p:          float = field(default_factory=lambda: _float("TOP_P", "0.95"))
     repeat_penalty: float = field(default_factory=lambda: _float("REPEAT_PENALTY", "1.1"))
 
-    # LLM provider — "groq" (hosted, no install required for end users — the
-    # default) or "ollama" (fully local, needs Ollama installed/running).
-    # Embeddings stay 100% local either way (sentence-transformers), so no
-    # second API key is ever required.
+    # LLM provider
     llm_provider:   str            = field(default_factory=lambda: os.getenv("LLM_PROVIDER", "groq").lower())
     groq_api_key:   str | None     = field(default_factory=lambda: os.getenv("GROQ_API_KEY") or None)
     groq_model:     str            = field(default_factory=lambda: os.getenv("GROQ_MODEL", "llama-3.1-8b-instant"))
@@ -136,7 +133,6 @@ class Settings:
             )
 
     def validate(self) -> dict[str, bool]:
-        """Runtime checks (writable paths etc.)"""
         return {
             "chunk_size_valid":       100 <= self.chunk_size <= 5000,
             "chunk_overlap_valid":    0 <= self.chunk_overlap < self.chunk_size,
@@ -165,7 +161,7 @@ class Settings:
         }
 
 
-# ── Bootstrap (create dirs) — call explicitly, not at import ─────────────────
+# ── Bootstrap ─────────────────────────────────────────────────────────────────
 
 def bootstrap(cfg: Settings) -> None:
     """Create required directories. Call once at app startup."""
