@@ -7,7 +7,7 @@ import shutil
 import tempfile
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable, Optional
 
 import streamlit as st
 from langchain.chains import ConversationalRetrievalChain
@@ -139,7 +139,19 @@ class RAGPipeline:
 
     # ── Document processing ───────────────────────────────────────────────────
 
-    def process_documents(self, files: list) -> int:
+    def process_documents(
+        self,
+        files: list,
+        progress_callback: Optional[Callable[[int, int, str], None]] = None,
+    ) -> int:
+        """
+        Chunk, embed, and index the given files.
+
+        progress_callback, if given, is called once per file as
+        progress_callback(files_started, total_files, filename) — right
+        before that file is processed — so a caller (e.g. the sidebar)
+        can drive a progress bar instead of a single opaque spinner.
+        """
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=cfg.chunk_size,
             chunk_overlap=cfg.chunk_overlap,
@@ -148,8 +160,12 @@ class RAGPipeline:
 
         all_chunks = []
         failed: list[str] = []
+        total = len(files)
 
-        for file in files:
+        for idx, file in enumerate(files, start=1):
+            if progress_callback:
+                progress_callback(idx, total, file.name)
+
             if file.name in self._processed:
                 log.debug("Skipping already-indexed file: %s", file.name)
                 continue
