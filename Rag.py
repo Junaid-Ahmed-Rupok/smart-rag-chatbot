@@ -296,6 +296,20 @@ def get_rag_pipeline(chat_model: str) -> RAGPipeline:
     return current
 
 
+def clear_chat_memory(session_id: str) -> None:
+    """
+    Drop the cached retrieval chain (and with it, its conversation
+    memory) for this session's pipeline, without touching the persisted
+    vector store or the uploaded documents. Call this whenever the chat
+    history is cleared from the UI, so old turns can't keep leaking into
+    future answers via the chain's ConversationBufferWindowMemory.
+    """
+    pipeline: RAGPipeline | None = st.session_state.get(SESSION_KEYS["rag_pipeline"])
+    if pipeline is not None:
+        pipeline.chain = None
+        log.info("Cleared chain memory for session %s", session_id)
+
+
 def delete_persisted_store(session_id: str) -> None:
     """Delete the on-disk FAISS index for one specific session."""
     path = cfg.session_store_path(session_id)
