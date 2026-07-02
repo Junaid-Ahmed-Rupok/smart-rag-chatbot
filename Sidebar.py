@@ -147,8 +147,26 @@ def _render_documents_section(selected_model: str | None, provider_ready: bool) 
             else:
                 try:
                     pipeline = get_rag_pipeline(selected_model)
-                    with st.spinner(f"Indexing {len(new_files)} file(s)..."):
-                        chunk_count = pipeline.process_documents(new_files)
+
+                    progress_bar = st.progress(0, text="Starting…")
+
+                    def _on_file_progress(started: int, total: int, filename: str) -> None:
+                        # started = 1-based count of files begun so far.
+                        # Shown as a fraction so the bar visibly advances
+                        # with each file rather than jumping once at the end.
+                        fraction = started / total
+                        progress_bar.progress(
+                            fraction,
+                            text=f"Indexing {filename} ({started}/{total})",
+                        )
+
+                    chunk_count = pipeline.process_documents(
+                        new_files, progress_callback=_on_file_progress
+                    )
+
+                    progress_bar.progress(1.0, text="Done")
+                    progress_bar.empty()
+
                     Session.mark_processed([f.name for f in new_files])
                     ds.toast(f"Indexed {chunk_count:,} chunks", "success")
                     log.info("Indexed %d files -> %d chunks", len(new_files), chunk_count)
