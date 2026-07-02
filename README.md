@@ -1,4 +1,3 @@
-
 <div align="center">
 
 # 🤖 Smart RAG Chatbot
@@ -40,10 +39,12 @@ One `pip install`. One API key. No local model server.
 | | |
 |---|---|
 | 📄 **Multi-format ingestion** | Upload and index PDF, DOCX, and TXT files in one batch |
+| 📊 **Live indexing progress** | Per-file progress bar shows exactly which document is being chunked/embedded |
 | 🔍 **Cited retrieval** | Every answer shows exactly which document(s) it drew from |
 | ⚡ **Fast, hosted inference** | Powered by Groq — no local model server, just an API key |
 | 🔁 **Hot-swappable models** | Switch Groq models mid-session without discarding your indexed documents |
 | 🧵 **Conversation memory** | Sliding-window memory keeps follow-up questions coherent |
+| 👋 **Ask about the creator** | The assistant can introduce its developer on request — try "who built you?" |
 | 🌗 **Polished UI** | Custom design system with light/dark mode, status badges, and toasts |
 | 🔒 **Local embeddings** | Document embeddings always run on-device — only the chat turn goes to Groq |
 | 🖥️ **Offline mode** | Set `LLM_PROVIDER=ollama` for a fully local, zero-API-key setup |
@@ -213,19 +214,19 @@ All settings are environment-driven via `.env` and validated at startup in `Conf
 
 1. Open the app — the sidebar shows **● Groq connected** once your key is verified.
 2. Pick a model from the **Model** dropdown.
-3. Upload one or more PDF / DOCX / TXT files under **Documents**, then click **Index documents**.
+3. Upload one or more PDF / DOCX / TXT files under **Documents**, then click **Index documents** — a progress bar tracks each file as it's chunked and embedded.
 4. Ask a question in the chat box — answers cite the source document(s) used.
 5. No documents indexed yet? Just ask anyway — it falls back to the bare chat model.
+6. Curious who built this? Ask something like *"who founded you?"* or *"who's your developer?"* — the assistant will introduce Sarder Junaid Ahmed.
 
 **Sidebar controls:**
-- **Clear chat** — wipes conversation history, keeps indexed documents intact
+- **Clear chat** — wipes conversation history and resets the model's conversation memory, keeps indexed documents intact
 - **Reset all** — wipes everything including the vector store
 
 ---
 
 ## 🛣️ Roadmap
 
-- [ ] Persistent vector store across sessions (FAISS save/load to `VECTOR_STORE_PATH`)
 - [ ] Streaming token-by-token responses
 - [ ] Per-document deletion from the index
 - [ ] Docker / `docker-compose` setup
@@ -284,4 +285,3 @@ MIT — see [LICENSE](LICENSE).
 Built with [Streamlit](https://streamlit.io) · [LangChain](https://www.langchain.com) · [Groq](https://groq.com) · [FAISS](https://github.com/facebookresearch/faiss) · [sentence-transformers](https://www.sbert.net)
 
 </div>
-```
