@@ -21,12 +21,29 @@ from langchain_community.document_loaders import (
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.llms import Ollama
 from langchain_community.vectorstores import FAISS
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.prompts import PromptTemplate
 from langchain_groq import ChatGroq
 
 import Session
-from Config import SESSION_KEYS, cfg
+from Config import APP_PERSONA, SESSION_KEYS, cfg
 
 log = logging.getLogger(__name__)
+
+# ── Prompts ────────────────────────────────────────────────────────────────────
+
+# Combine-docs prompt for the RAG path: same persona (so "who founded you?"
+# still works with documents indexed) plus the standard stuff-documents
+# context/question slots that ConversationalRetrievalChain expects.
+_QA_PROMPT = PromptTemplate(
+    template=(
+        APP_PERSONA
+        + "\n\nUse the following pieces of context to answer the user's question. "
+          "If you don't know the answer, just say you don't know — don't make "
+          "anything up.\n\nContext:\n{context}\n\nQuestion: {question}\n\nAnswer:"
+    ),
+    input_variables=["context", "question"],
+)
 
 # ── Loader registry ───────────────────────────────────────────────────────────
 
@@ -260,6 +277,7 @@ class RAGPipeline:
             retriever=retriever,
             memory=memory,
             return_source_documents=True,
+            combine_docs_chain_kwargs={"prompt": _QA_PROMPT},
         )
         return self.chain
 
@@ -276,7 +294,20 @@ class RAGPipeline:
 
     def ask_direct(self, question: str) -> str:
         self.init_models()
-        result = self.llm.invoke(question)
+
+        if self.provider == "groq":
+            # ChatGroq is a chat model — pass a proper system/human message pair.
+            result = self.llm.invoke([
+                SystemMessage(content=APP_PERSONA),
+                HumanMessage(content=question),
+            ])
+        else:
+            # Ollama (via langchain_community.llms.Ollama) is a plain
+            # completion model — no message roles, so fold the persona
+            # into the prompt text itself.
+            prompt = f"{APP_PERSONA}\n\nUser: {question}\nAssistant:"
+            result = self.llm.invoke(prompt)
+
         return result.content if hasattr(result, "content") else result
 
     # ── Housekeeping ──────────────────────────────────────────────────────────
