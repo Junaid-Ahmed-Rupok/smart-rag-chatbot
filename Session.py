@@ -13,19 +13,27 @@ log = logging.getLogger(__name__)
 
 _SESSION_ID_KEY = "session_id"
 
-_DEFAULTS: dict = {
-    SESSION_KEYS["messages"]:        [],
-    SESSION_KEYS["processed_files"]: set(),
-    SESSION_KEYS["ollama_status"]:   False,
-}
-
 
 # ── Lifecycle ──────────────────────────────────────────────────────────────────
 
 def init() -> None:
-    """Ensure all session keys exist with sane defaults."""
-    for key, default in _DEFAULTS.items():
-        st.session_state.setdefault(key, default)
+    """
+    Ensure all session keys exist with sane defaults.
+
+    IMPORTANT: each default is created fresh, inline, right here — never
+    read from a shared module-level list/dict/set. Modules are imported
+    once per server process, so a module-level `[]` or `set()` used as a
+    `st.session_state.setdefault()` default would be the SAME object
+    handed to every visitor. The first append/add to it (e.g. one user
+    sending a chat message) would then mutate that shared object, and
+    every subsequent new/refreshed session would be initialised with
+    that leftover data from a completely different session. Building
+    the default inline in each setdefault() call guarantees a brand-new,
+    unshared object every time.
+    """
+    st.session_state.setdefault(SESSION_KEYS["messages"], [])
+    st.session_state.setdefault(SESSION_KEYS["processed_files"], set())
+    st.session_state.setdefault(SESSION_KEYS["ollama_status"], False)
 
 
 def get_session_id() -> str:
