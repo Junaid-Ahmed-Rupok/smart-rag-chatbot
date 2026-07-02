@@ -8,7 +8,7 @@ import streamlit as st
 
 import Session
 from design.components import ds
-from Rag import get_rag_pipeline, delete_persisted_store
+from Rag import get_rag_pipeline, delete_persisted_store, clear_chat_memory
 from Config import APP_NAME, APP_VERSION, GROQ_AVAILABLE_MODELS, cfg
 
 log = logging.getLogger(__name__)
@@ -176,6 +176,7 @@ def _render_actions() -> None:
     with col1:
         if st.button("Clear chat", use_container_width=True):
             Session.clear_chat()
+            clear_chat_memory(Session.get_session_id())
             st.rerun()
     with col2:
         if st.button("Reset all", use_container_width=True):
