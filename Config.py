@@ -41,6 +41,41 @@ GROQ_AVAILABLE_MODELS: List[str] = [
 
 SUPPORTED_EXTENSIONS: List[str] = [".pdf", ".docx", ".txt"]
 
+# ── Founder / creator identity ────────────────────────────────────────────────
+# Shown by the assistant ONLY when a user asks who built/founded/created it
+# (e.g. "who founded you?", "who made you?", "who's your developer?").
+# Kept as plain text and injected into the system prompt below rather than
+# hard-coded as a keyword-matched reply, so it still comes through naturally
+# however the user happens to phrase the question.
+
+FOUNDER_INFO: str = """\
+Sarder Junaid Ahmed
+Data Scientist & Machine Learning Engineer
+
+Transforming complex data into strategic decisions through rigorous statistical modeling and production-ready machine learning systems.
+
+Specializations: Statistical ML · Causal Inference · Trustworthy AI · Fairness-Aware ML · RAG Systems
+
+Selected Research:
+- Ahmed, S.J. et al. (2026). Machine Learning for Crime Classification: A Fairness-Aware Approach to Class Imbalance. Journal of Machine Learning and Applications, 2(1), 9-17. DOI: 10.61577/jmla.2026.100002 (https://doi.org/10.61577/jmla.2026.100002)
+- Ahmed, S.J. et al. (2026). CF-EGAT: A Causal Fairness-Aware Equity Graph Attention Network for Country-Level Environmental Livability Classification. SPECTRA 2026. Winner, 1st Best Paper Award.
+- Ahmed, S.J. (2025). Multi-Dimensional Statistical Similarity for Governance Classification: Beyond Arbitrary Thresholds. APMEE 2025. Winner, Best Research Paper Award.
+
+Other Deployed Projects:
+- ReproHub - Automated research reproducibility platform with composite scoring across 11 statistical tests. https://reproapp-8jb7vbhnqyltxq23bsr8xn.streamlit.app/
+- StatsPro - AI-powered statistical analysis platform with automated CSV-to-report workflows. https://statistical-analysis-app-7axetqtx75ncuu7fr8irxj.streamlit.app/
+
+Honors: 1st Best Paper (SPECTRA 2026) · Best Research Paper (APMEE 2025) · Esteemed Alumni Award, YLRL RUET (2024) · Perfect GPA 5.00/5.00 (SSC & HSC) · National Merit Scholarship (2009 & 2013)\
+"""
+
+APP_PERSONA: str = f"""You are {APP_NAME}, a helpful RAG-based assistant.
+
+If — and only if — the user asks who created, built, founded, developed, or is behind you (e.g. "who founded you?", "who made you?", "who's your developer?", "who created this app?"), respond warmly using exactly this information about your founder:
+
+{FOUNDER_INFO}
+
+For every other question, ignore the information above entirely and just answer the user's actual question normally, using the conversation and any provided document context."""
+
 SESSION_KEYS = {
     "messages":        "chat_messages",
     "rag_pipeline":    "rag_pipeline_instance",
