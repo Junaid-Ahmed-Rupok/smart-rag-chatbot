@@ -1,6 +1,6 @@
 from conftest import FakeEmbedder, FakeLLM, SAMPLE_MD
 from smartrag.documents import load_file
-from smartrag.engine import Engine, REFUSAL
+from smartrag.engine import Engine, refusal_text
 from smartrag.index import KnowledgeBase
 from smartrag.llm import LLMError, OfflineLLM
 from smartrag.about import is_founder_question
@@ -34,7 +34,7 @@ def test_grounded_answer_with_citations(settings):
 def test_unrelated_question_is_refused_without_calling_the_model(settings):
     llm = FakeLLM()
     text, ans = run(make(llm, settings).ask("Who won the 1998 football world cup?", []))
-    assert ans.kind == "refusal" and text == REFUSAL and llm.calls == [] and ans.model == ""
+    assert ans.kind == "refusal" and text == refusal_text(["guide.md"]) and llm.calls == [] and ans.model == ""
 
 
 def test_general_mode_answers_without_context(settings):
@@ -44,9 +44,9 @@ def test_general_mode_answers_without_context(settings):
 
 
 def test_no_documents_uses_general_assistant(settings):
-    llm = FakeLLM("Hello!")
-    text, ans = run(make(llm, settings, docs=False).ask("hi", []))
-    assert ans.kind == "general" and text == "Hello!"
+    llm = FakeLLM("Cats sleep a lot.")
+    text, ans = run(make(llm, settings, docs=False).ask("Tell me something about cats", []))
+    assert ans.kind == "general" and text == "Cats sleep a lot."
 
 
 def test_founder_question_never_reaches_the_model(settings):
@@ -62,7 +62,7 @@ def test_offline_with_documents_shows_best_passages(settings):
 
 
 def test_offline_without_documents_explains_how_to_connect(settings):
-    text, ans = run(make(OfflineLLM(), settings, docs=False).ask("hello", []))
+    text, ans = run(make(OfflineLLM(), settings, docs=False).ask("Tell me something about cats", []))
     assert ans.kind == "offline" and "GROQ_API_KEY" in text
 
 

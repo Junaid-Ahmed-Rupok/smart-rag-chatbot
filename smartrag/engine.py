@@ -12,14 +12,20 @@ from .bm25 import tokenize
 from .index import Hit, KnowledgeBase, is_overview_question
 from .llm import LLMError
 from .prompts import build_condense_messages, build_messages
+from .smalltalk import OFFLINE_REPLY, chat_system_prompt, is_smalltalk
 from .settings import Settings
 
 log = logging.getLogger(__name__)
 
-REFUSAL = (
-    "I couldn't find that in your documents. Try rephrasing the question, or switch off "
-    "**Answer from documents only** in Settings to get a general answer."
-)
+def refusal_text(files: list[str]) -> str:
+    names = ", ".join(files[:3]) + (" and more" if len(files) > 3 else "")
+    return (
+        f"I couldn't find that in your documents ({names}). Try asking about something they contain, "
+        "or use the button below to get a general answer instead."
+    )
+
+
+REFUSAL = refusal_text([])
 NO_MODEL = (
     "No language model is connected, so I can't write answers yet. "
     "Add a free `GROQ_API_KEY` to turn them on. Upload documents and I will still show the best matching passages."
@@ -109,6 +115,10 @@ class Turn:
             yield self.text
             return
 
+        if is_smalltalk(self.question):
+            yield from self._chat()
+            return
+
         if self.kb.has_documents():
             self.standalone = self._standalone()
             overview = is_overview_question(self.question)
@@ -117,7 +127,7 @@ class Turn:
             if relevant:
                 self.hits = hits
             elif self.documents_only:
-                self.kind, self.text, self._done = "refusal", REFUSAL, True
+                self.kind, self.text, self._done = "refusal", refusal_text(list(self.kb.files)), True
                 yield self.text
                 return
 
@@ -155,6 +165,34 @@ class Turn:
         if self.kind in ("refusal", "founder", "offline", "extractive") or not self.llm.available:
             return ""
         return getattr(self.llm, "last_model", "") or self.model
+
+    def _chat(self) -> Iterator[str]:
+        """Friendly conversation: no retrieval, no citations."""
+        self.kind = "chat"
+        if not self.llm.available:
+            self.text = OFFLINE_REPLY
+            self._done = True
+            yield self.text
+            return
+        messages = [{"role": "system", "content": chat_system_prompt(list(self.kb.files))}]
+        for m in self.history[-(self.s.memory_turns * 2):]:
+            if m["role"] in ("user", "assistant"):
+                messages.append({"role": m["role"], "content": m["content"][:1500]})
+        messages.append({"role": "user", "content": self.question})
+        try:
+            for piece in self.llm.stream(messages, self.model, 0.5, 200):
+                self.text += piece
+                yield piece
+        except LLMError as exc:
+            self.kind, self.error = "error", exc.message
+            self.text += ("\n\n" if self.text else "") + f"⚠️ {exc.message}"
+            yield f"⚠️ {exc.message}"
+        except Exception:
+            log.exception("Unexpected model failure")
+            self.kind, self.error = "error", "Something went wrong."
+            self.text += "⚠️ Something went wrong. Please try again."
+            yield "⚠️ Something went wrong. Please try again."
+        self._done = True
 
     def result(self) -> Answer:
         text = self.text.strip()

@@ -53,14 +53,25 @@ def _meta(m: dict) -> str:
     return " · ".join(bits)
 
 
+def _general_button(index: int) -> None:
+    """After a refusal, let the user ask the same question without the documents."""
+    msgs = st.session_state["messages"]
+    if index == len(msgs) - 1 and index > 0 and msgs[index].get("kind") == "refusal":
+        if st.button("Answer from general knowledge", key=f"general_{index}", icon=":material/public:"):
+            st.session_state["pending"] = msgs[index - 1]["content"]
+            st.session_state["force_general"] = True
+            st.rerun()
+
+
 def render_history() -> None:
-    for m in st.session_state["messages"]:
+    for i, m in enumerate(st.session_state["messages"]):
         with st.chat_message(m["role"], avatar="🧑" if m["role"] == "user" else "🤖"):
             st.markdown(m["content"])
             if m["role"] == "assistant":
                 render_sources(m.get("citations", []), m.get("standalone", ""))
                 if meta := _meta(m):
                     st.markdown(f'<div class="meta">{meta}</div>', unsafe_allow_html=True)
+                _general_button(i)
 
 
 def render_welcome() -> None:
@@ -111,8 +122,9 @@ def handle_prompt(prompt: str, intro=None) -> None:
     with st.chat_message("user", avatar="🧑"):
         st.markdown(prompt)
 
+    documents_only = ss["documents_only"] and not ss.pop("force_general", False)
     turn = state.engine().ask(
-        prompt, history, documents_only=ss["documents_only"],
+        prompt, history, documents_only=documents_only,
         model=ss.get("model", ""), top_k=ss["top_k"],
     )
     with st.chat_message("assistant", avatar="🤖"):
@@ -127,6 +139,7 @@ def handle_prompt(prompt: str, intro=None) -> None:
         render_sources(entry["citations"], answer.standalone)
         if meta := _meta(entry):
             st.markdown(f'<div class="meta">{meta}</div>', unsafe_allow_html=True)
+        _general_button(len(ss["messages"]) - 1)
 
 
 def render() -> None:

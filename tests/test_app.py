@@ -109,3 +109,22 @@ def test_model_failure_does_not_break_the_page(app, monkeypatch):
     button(at, key="sample_btn").click().run()
     at.chat_input[0].set_value("What is chunk overlap?").run()
     assert not at.exception and "Could not reach Groq." in at.session_state["messages"][-1]["content"]
+
+
+def test_refusal_offers_a_general_answer_button(app, monkeypatch):
+    llm = FakeLLM("Mars has no permanent population.")
+    monkeypatch.setattr(state, "llm", lambda: llm)
+    at = app.run()
+    button(at, key="sample_btn").click().run()
+    at.chat_input[0].set_value("What is the population of Mars in 2050?").run()
+    assert at.session_state["messages"][-1]["kind"] == "refusal" and llm.calls == []
+    button(at, "Answer from general knowledge").click().run()
+    assert not at.exception and at.session_state["messages"][-1]["kind"] == "general" and len(llm.calls) == 1
+
+
+def test_greeting_in_documents_mode_is_friendly(app, monkeypatch):
+    monkeypatch.setattr(state, "llm", lambda: FakeLLM("Hi there! Ask me about your documents."))
+    at = app.run()
+    button(at, key="sample_btn").click().run()
+    at.chat_input[0].set_value("Hello bro? How are you?").run()
+    assert at.session_state["messages"][-1]["kind"] == "chat" and "Hi there" in at.session_state["messages"][-1]["content"]
