@@ -34,7 +34,7 @@ def test_grounded_answer_with_citations(settings):
 def test_unrelated_question_is_refused_without_calling_the_model(settings):
     llm = FakeLLM()
     text, ans = run(make(llm, settings).ask("Who won the 1998 football world cup?", []))
-    assert ans.kind == "refusal" and text == REFUSAL and llm.calls == []
+    assert ans.kind == "refusal" and text == REFUSAL and llm.calls == [] and ans.model == ""
 
 
 def test_general_mode_answers_without_context(settings):

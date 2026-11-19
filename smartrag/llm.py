@@ -7,7 +7,8 @@ import logging
 import time
 from typing import Iterator
 
-from .settings import GROQ_FALLBACK_MODELS, GROQ_PREFERRED, GROQ_RATE_LIMIT_FALLBACK
+from .settings import (GROQ_FALLBACK_MODELS, GROQ_RATE_LIMIT_FALLBACK, LIGHT_MODELS, MODEL_DEPRIORITISED,
+                       MODEL_PREFERENCE)
 
 log = logging.getLogger(__name__)
 Message = dict  # {"role": "system" | "user" | "assistant", "content": str}
@@ -41,11 +42,29 @@ _MODEL_CACHE: dict[str, tuple[float, list[str]]] = {}
 _NOT_CHAT = ("whisper", "guard", "tts", "orpheus", "embed", "playai", "transcribe", "safeguard")
 
 
+def _rank(model: str) -> tuple[int, str]:
+    name = model.lower()
+    if any(bad in name for bad in MODEL_DEPRIORITISED):
+        return (len(MODEL_PREFERENCE) + 1, name)
+    for i, pattern in enumerate(MODEL_PREFERENCE):
+        if pattern in name:
+            return (i, name)
+    return (len(MODEL_PREFERENCE), name)
+
+
 def order_models(ids: list[str]) -> list[str]:
-    """Chat models only, preferred ones first."""
-    chat = sorted({i for i in ids if not any(bad in i.lower() for bad in _NOT_CHAT)})
-    first = [m for m in GROQ_PREFERRED if m in chat]
-    return first + [m for m in chat if m not in first]
+    """Chat models only, best general-purpose ones first."""
+    chat = {i for i in ids if not any(bad in i.lower() for bad in _NOT_CHAT)}
+    return sorted(chat, key=_rank)
+
+
+def light_fallback(models: list[str], current: str) -> str | None:
+    """A lighter model to retry with when the chosen one is rate limited."""
+    for pattern in LIGHT_MODELS:
+        for m in models:
+            if pattern in m.lower() and m != current:
+                return m
+    return GROQ_RATE_LIMIT_FALLBACK if current != GROQ_RATE_LIMIT_FALLBACK else None
 
 
 class GroqLLM:
@@ -83,7 +102,8 @@ class GroqLLM:
                max_tokens: int = 900) -> Iterator[str]:
         import groq
 
-        candidates = [model] + ([GROQ_RATE_LIMIT_FALLBACK] if model != GROQ_RATE_LIMIT_FALLBACK else [])
+        backup = light_fallback(self.list_models(), model)
+        candidates = [model] + ([backup] if backup else [])
         last_error: LLMError | None = None
         for name in candidates:
             started = False

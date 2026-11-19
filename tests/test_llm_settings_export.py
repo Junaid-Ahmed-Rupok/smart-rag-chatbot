@@ -76,10 +76,25 @@ def test_retired_model_moves_on_to_the_next():
 def test_model_list_is_filtered_ordered_and_cached(monkeypatch):
     llm_mod._MODEL_CACHE.clear()
     g = GroqLLM("key-1", FakeClient({}))
-    assert g.list_models() == ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "qwen3-32b"]
+    assert g.list_models() == ["llama-3.3-70b-versatile", "qwen3-32b", "llama-3.1-8b-instant"]
     g.client.models = SimpleNamespace(list=lambda: (_ for _ in ()).throw(RuntimeError("down")))
     assert g.list_models()[0] == "llama-3.3-70b-versatile"            # served from cache
     assert order_models(["whisper-x", "zzz", "llama-3.1-8b-instant"]) == ["llama-3.1-8b-instant", "zzz"]
+
+
+def test_default_is_never_an_obscure_model():
+    ids = ["allam-2-7b", "groq/compound", "openai/gpt-oss-20b", "meta-llama/llama-4-scout-17b", "openai/gpt-oss-120b",
+           "canopylabs/orpheus-tts"]
+    ordered = order_models(ids)
+    assert ordered[0] == "openai/gpt-oss-120b"
+    assert set(ordered[-2:]) == {"allam-2-7b", "groq/compound"}
+    assert "canopylabs/orpheus-tts" not in ordered
+
+
+def test_light_fallback_is_chosen_from_what_exists():
+    from smartrag.llm import light_fallback
+    assert light_fallback(["openai/gpt-oss-120b", "openai/gpt-oss-20b"], "openai/gpt-oss-120b") == "openai/gpt-oss-20b"
+    assert light_fallback(["x"], "llama-3.1-8b-instant") is None
 
 
 def test_model_list_falls_back_when_provider_is_down():

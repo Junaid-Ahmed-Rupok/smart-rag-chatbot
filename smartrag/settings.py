@@ -18,6 +18,13 @@ GROQ_FALLBACK_MODELS = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
 GROQ_PREFERRED = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
 GROQ_RATE_LIMIT_FALLBACK = "llama-3.1-8b-instant"
 
+# Model names change over time, so the choice is by family, best general-purpose answer quality first.
+# Anything not listed comes after; niche or non-chat families come last.
+MODEL_PREFERENCE = ["llama-3.3-70b", "gpt-oss-120b", "llama-4-maverick", "kimi-k2", "qwen3-32b",
+                    "llama-3.1-8b", "gpt-oss-20b", "llama-4-scout", "llama", "qwen", "gpt-oss", "gemma", "deepseek"]
+MODEL_DEPRIORITISED = ("allam", "compound")
+LIGHT_MODELS = ["llama-3.1-8b", "gpt-oss-20b", "llama-4-scout", "gemma"]
+
 
 def _secret(name: str) -> str | None:
     """Read a Streamlit secret without crashing when no secrets file exists."""

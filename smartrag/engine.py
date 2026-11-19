@@ -150,6 +150,12 @@ class Turn:
             yield ("\n\n" if self.text != note else "") + note
         self._done = True
 
+    def _model_used(self) -> str:
+        """Name the model only when one was actually called for this answer."""
+        if self.kind in ("refusal", "founder", "offline", "extractive") or not self.llm.available:
+            return ""
+        return getattr(self.llm, "last_model", "") or self.model
+
     def result(self) -> Answer:
         text = self.text.strip()
         used: set[int] = set()
@@ -163,7 +169,7 @@ class Turn:
         ]
         return Answer(
             text=text, kind=self.kind, citations=citations,
-            model=getattr(self.llm, "last_model", "") or self.model if self.llm.available else "",
+            model=self._model_used(),
             seconds=round(time.time() - self._t0, 1), mode=self.kb.mode,
             standalone=self.standalone, error=self.error,
         )
