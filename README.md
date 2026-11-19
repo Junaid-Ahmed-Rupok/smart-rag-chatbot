@@ -2,8 +2,8 @@
 
 # 🤖 Smart RAG Chatbot
 
-**Upload your documents. Ask questions. Get cited answers.**
-No local model server. No complex setup. Just one API key and you're running.
+**Ask questions about your own documents and get answers you can check.**
+Every claim cites its source: file, page or section, and the exact passage.
 
 <br/>
 
@@ -12,227 +12,170 @@ No local model server. No complex setup. Just one API key and you're running.
 <br/>
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![Streamlit](https://img.shields.io/badge/Streamlit-1.40%2B-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
-[![LangChain](https://img.shields.io/badge/LangChain-0.3%2B-1C3C3C?logo=langchain&logoColor=white)](https://www.langchain.com/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-1.50%2B-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
 [![Groq](https://img.shields.io/badge/Groq-Free%20Tier-F55036)](https://groq.com/)
 [![FAISS](https://img.shields.io/badge/FAISS-Vector%20Search-0467DF)](https://github.com/facebookresearch/faiss)
+[![Tests](https://github.com/Junaid-Ahmed-Rupok/smart-rag-chatbot/actions/workflows/tests.yml/badge.svg)](https://github.com/Junaid-Ahmed-Rupok/smart-rag-chatbot/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-22C55E)](LICENSE)
+
+<br/>
+
+<img src="docs/images/welcome.png" alt="Smart RAG Chatbot" width="860"/>
 
 </div>
 
 ---
 
-## ✨ Why this exists
+## ✨ What makes it different
 
-Most chatbots only know what's in their training data. Most RAG tutorials either need a paid cloud subscription, or a local LLM server that takes 30 minutes to configure.
-
-**Smart RAG Chatbot** is built for everyone — not just developers. It indexes your PDFs, DOCX, and TXT files into a local vector store, retrieves the most relevant passages for every question, and answers using [Groq](https://groq.com)'s hosted inference — one of the fastest free LLM APIs available. Every answer cites exactly which document it came from.
-
-One `pip install`. One API key. No local model server.
-
-> Prefer fully offline? Set `LLM_PROVIDER=ollama` to use a local [Ollama](https://ollama.com) model — see [Configuration](#-configuration-reference).
-
----
-
-## 🚀 Features
+Most RAG demos paste your files into a vector store and hope. This one is built to be **checked, not trusted**.
 
 | | |
 |---|---|
-| 📄 **Multi-format ingestion** | Upload and index PDF, DOCX, and TXT files in one batch |
-| 📊 **Live indexing progress** | Per-file progress bar shows exactly which document is being chunked/embedded |
-| 🔍 **Cited retrieval** | Every answer shows exactly which document(s) it drew from |
-| ⚡ **Fast, hosted inference** | Powered by Groq — no local model server, just an API key |
-| 🔁 **Hot-swappable models** | Switch Groq models mid-session without discarding your indexed documents |
-| 🧵 **Conversation memory** | Sliding-window memory keeps follow-up questions coherent |
-| 👋 **Ask about the creator** | The assistant can introduce its developer on request — try "who built you?" |
-| 🌗 **Polished UI** | Custom design system with light/dark mode, status badges, and toasts |
-| 🔒 **Local embeddings** | Document embeddings always run on-device — only the chat turn goes to Groq |
-| 🖥️ **Offline mode** | Set `LLM_PROVIDER=ollama` for a fully local, zero-API-key setup |
+| 📌 **Real citations** | Answers carry `[1]`, `[2]` markers. Open a source to read the exact passage, with the file name and **page number** (PDF) or **section** (Word, Markdown), and the matching words highlighted. |
+| 🧱 **Grounded or silent** | If your documents do not cover a question, the bot says so instead of guessing. A relevance check blocks answers built from passages that do not match. A switch allows general answers when you want them. |
+| 🔎 **Hybrid search** | Semantic search (FAISS) and keyword search (BM25) run side by side and are merged with reciprocal rank fusion, so exact names and numbers are found as well as paraphrases. Works for Bengali text too. |
+| ⚡ **Streaming answers** | Text appears as it is written, with the model, response time and number of passages shown under each answer. |
+| 🧠 **Follow-up aware** | Questions like *"why is it needed?"* are rewritten into standalone questions before searching. |
+| 📄 **Many formats** | PDF (page-aware), DOCX (headings and tables), Markdown, TXT, CSV. Clear messages for scanned PDFs, password-protected files and damaged files. |
+| 🗂️ **Document control** | Add and remove single documents, duplicates are detected, and a *Try a sample document* button lets visitors test it in one click. |
+| 🔒 **Private by design** | Documents live in memory for the session only. Nothing is written to disk, and there is no stored index to leak. Chat export is a download, not a database. |
+| 🛟 **Never a dead end** | No API key? It runs in offline mode and shows the best matching passages. Rate limited? It falls back to a lighter model. Search model unavailable? It uses keyword search and says so. |
+| 😴 **Never sleeps** | A scheduled job opens the app in a real browser every four hours (see [Staying awake](#-staying-awake)). |
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ How it works
 
 ```
-Upload (PDF · DOCX · TXT)
-        │
-        ▼
-Chunk   RecursiveCharacterTextSplitter
-        │
-        ▼
-Embed   Local sentence-transformers model  ← always on-device, never sent to any API
-        │
-        ▼
-Index   FAISS vector store
-        │
-        ▼
-Question ──► Retrieve top-k chunks  (MMR or similarity search)
-        │
-        ▼
-Generate   Groq API → llama / gemma  (or local Ollama if LLM_PROVIDER=ollama)
-        │
-        ▼
-Answer + cited source documents
+Upload (PDF · DOCX · MD · TXT · CSV)
+   │   page numbers and sections are kept
+   ▼
+Chunk      overlapping passages (LangChain text splitter)
+   ▼
+Index      MiniLM embeddings → FAISS      +      BM25 keyword index
+   ▼
+Question ─► rewrite follow-ups ─► hybrid search ─► reciprocal rank fusion ─► relevance check
+   ▼
+Generate   numbered passages + strict instructions → Groq (streamed)
+   ▼
+Answer with [n] citations ─► source cards (file · page · highlighted passage)
 ```
 
-> **Design note:** embeddings and the chat model are intentionally decoupled. Switching models or providers mid-session never invalidates the vector store — only the LLM and conversation chain are rebuilt.
+The embedding model is loaded **once per server** in the background and shared by every visitor, so memory stays low and the first question is not slowed by a model download.
 
 ---
 
-## 🗂️ Project Layout
-
-```
-smart-rag-chatbot/
-├── app.py              Entry point for Streamlit Cloud
-├── Main.py             Bootstrap, provider gates, module wiring
-├── Session.py          Single source of truth for st.session_state
-├── Sidebar.py          Branding, model picker, uploads, stats, controls
-├── Chat.py             Conversation rendering + prompt handling
-├── Rag.py              The RAG pipeline — chunk, embed, index, retrieve
-├── Config.py           Env-driven, validated app configuration
-├── design/
-│   ├── components.py   Design system (cards, alerts, badges, tables…)
-│   └── theme.py        Color tokens / theming
-├── static/
-│   └── style.css       Chrome styling
-└── requirements.txt
-```
-
-| File | Responsibility |
-|---|---|
-| `Main.py` | Bootstraps the app, enforces the active provider's readiness gates, wires everything together |
-| `Session.py` | All `st.session_state` reads/writes go through here — nothing else touches raw session keys |
-| `Sidebar.py` | Model selection, document upload, stats, session controls |
-| `Chat.py` | Renders chat history, handles a single conversational turn end-to-end |
-| `Rag.py` | Chunking, embedding, FAISS indexing, retrieval chain, inference |
-| `Config.py` | Single source of truth for configuration — env-driven, validated at startup |
-
----
-
-## ⚙️ Setup
-
-### 1 · Get a free Groq API key
-
-Sign up at [console.groq.com/keys](https://console.groq.com/keys) — takes under a minute, no credit card required.
-
-### 2 · Install dependencies
+## 🚀 Run it locally
 
 ```bash
 git clone https://github.com/Junaid-Ahmed-Rupok/smart-rag-chatbot.git
 cd smart-rag-chatbot
-
-python -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
+python -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
+cp .env.example .env                                   # then paste your free Groq key
+streamlit run Main.py
 ```
 
-### 3 · Configure
+Get a free key at [console.groq.com/keys](https://console.groq.com/keys). Without one the app still runs in offline mode.
 
-```bash
-cp .env.example .env
-```
-
-Open `.env` and paste your key:
-
-```env
-GROQ_API_KEY=gsk_your_key_here
-```
-
-### 4 · Run
-
-```bash
-streamlit run app.py
-```
-
-Open [http://localhost:8501](http://localhost:8501) — you're live.
-
-The first question you ask will download the local embedding model (~80 MB, one-time only).
+**Fully offline:** install [Ollama](https://ollama.com), run `ollama pull mistral`, and set `LLM_PROVIDER=ollama` in `.env`.
 
 ---
 
-### 🖥️ Offline / Local Mode (optional)
+## ☁️ Deploy on Streamlit Community Cloud (free)
 
-To run 100% locally with no API key:
-
-```bash
-# Install Ollama from https://ollama.com, then:
-ollama serve
-ollama pull mistral     # or: llama3 · phi3 · gemma:2b · codellama
-```
-
-Then in `.env`:
-
-```env
-LLM_PROVIDER=ollama
-```
-
----
-
-## ☁️ Deploying to Streamlit Cloud
-
-1. Push your repo to GitHub
-2. Go to [share.streamlit.io](https://share.streamlit.io) → **New app**
-3. Select your repo · Branch: `main` · Main file: `app.py`
-4. Open **Advanced settings → Secrets** and add:
+1. Fork or push this repository to GitHub.
+2. On [share.streamlit.io](https://share.streamlit.io) choose **New app**, branch `main`, main file **`Main.py`**.
+3. Under **Advanced settings → Secrets** add:
 
 ```toml
 GROQ_API_KEY = "gsk_your_key_here"
 ```
 
-5. Click **Deploy** — you'll get a public URL in ~60 seconds.
+---
+
+## 😴 Staying awake
+
+Streamlit Community Cloud puts an app to sleep after a period with no visitors. `.github/workflows/keepalive.yml` runs every four hours and opens the app in a real headless browser, clicks the *wake up* button if the app had slept, and then checks that the page actually rendered. If it did not, the run fails and GitHub emails you.
+
+- The app URL is in the workflow; to point it elsewhere add a repository secret named `APP_URL`.
+- GitHub disables scheduled workflows after 60 days with no repository activity. Any push, or a manual *Run workflow*, switches them back on.
 
 ---
 
-## 🔧 Configuration Reference
+## 🔧 Configuration
 
-All settings are environment-driven via `.env` and validated at startup in `Config.py`.
+Settings come from environment variables, `.env`, or Streamlit Secrets. All are optional except a Groq key for AI answers.
 
 | Variable | Default | Description |
 |---|---|---|
-| `LLM_PROVIDER` | `groq` | `groq` (hosted) or `ollama` (fully local) |
-| `GROQ_API_KEY` | — | **Required** when `LLM_PROVIDER=groq`. [Get one free](https://console.groq.com/keys) |
-| `GROQ_MODEL` | `llama-3.1-8b-instant` | Default Groq chat model |
-| `LOCAL_EMBEDDING_MODEL` | `sentence-transformers/all-MiniLM-L6-v2` | Always local, regardless of provider |
-| `DEFAULT_MODEL` | `mistral` | Default model when `LLM_PROVIDER=ollama` |
-| `OLLAMA_HOST` | `http://localhost:11434` | Ollama server URL (only used when `LLM_PROVIDER=ollama`) |
-| `TEMPERATURE` | `0.2` | LLM sampling temperature (`0`–`2`) |
-| `TOP_P` | `0.95` | Nucleus sampling parameter |
-| `REPEAT_PENALTY` | `1.1` | Penalizes repeated tokens (Ollama only) |
-| `CHUNK_SIZE` | `1000` | Characters per document chunk |
-| `CHUNK_OVERLAP` | `200` | Overlap between consecutive chunks |
-| `RETRIEVAL_K` | `4` | Chunks retrieved per question |
-| `RETRIEVAL_FETCH_K` | `8` | Candidate pool size before MMR re-ranking |
-| `SEARCH_TYPE` | `mmr` | `mmr` (diverse results) or `similarity` |
-| `MMR_LAMBDA` | `0.5` | Relevance / diversity trade-off for MMR (`0`–`1`) |
-| `CONVERSATION_MEMORY_LENGTH` | `10` | Number of past turns retained in memory |
-| `MAX_UPLOAD_SIZE_MB` | `200` | Max upload size per file |
-| `DEBUG` | `False` | Verbose logging + LangChain chain trace |
+| `GROQ_API_KEY` | none | Free key. Without it the app runs in offline mode |
+| `LLM_PROVIDER` | auto | `groq`, `ollama` or `offline` |
+| `GROQ_MODEL` | `llama-3.3-70b-versatile` | Default model. The list in the sidebar is fetched live from Groq |
+| `OLLAMA_HOST` / `OLLAMA_MODEL` | `http://localhost:11434` / `mistral` | Local model settings |
+| `EMBEDDING_MODEL` | `sentence-transformers/all-MiniLM-L6-v2` | Use `paraphrase-multilingual-MiniLM-L12-v2` for Bengali and other languages |
+| `CHUNK_SIZE` / `CHUNK_OVERLAP` | `900` / `150` | Characters per passage and overlap |
+| `RETRIEVAL_K` | `5` | Passages per answer (adjustable in the sidebar) |
+| `MEMORY_TURNS` | `6` | Past turns sent to the model |
+| `MAX_FILE_MB` / `MAX_FILES` / `MAX_CHUNKS` | `25` / `10` / `6000` | Upload and index limits per session |
+| `TEMPERATURE` / `MAX_TOKENS` | `0.2` / `900` | Generation settings |
 
 ---
 
-## 💬 Usage
+## 🗂️ Project layout
 
-1. Open the app — the sidebar shows **● Groq connected** once your key is verified.
-2. Pick a model from the **Model** dropdown.
-3. Upload one or more PDF / DOCX / TXT files under **Documents**, then click **Index documents** — a progress bar tracks each file as it's chunked and embedded.
-4. Ask a question in the chat box — answers cite the source document(s) used.
-5. No documents indexed yet? Just ask anyway — it falls back to the bare chat model.
-6. Curious who built this? Ask something like *"who founded you?"* or *"who's your developer?"* — the assistant will introduce Sarder Junaid Ahmed.
+```
+Main.py                 Entry point (streamlit run Main.py)
+smartrag/
+  settings.py           Configuration with safe fallbacks
+  documents.py          File readers: page- and section-aware, friendly errors
+  chunking.py           Overlapping chunks that remember their location
+  bm25.py               Keyword ranking (English and Bengali)
+  embeddings.py         One shared, background-loaded embedding model
+  index.py              Knowledge base: FAISS + BM25 + rank fusion + relevance check
+  prompts.py            Prompt construction
+  llm.py                Groq (streaming, model fallback), Ollama, offline
+  engine.py             One question-and-answer turn, citations, refusal logic
+  export.py             Chat transcript download
+  about.py              Creator information, shown only when asked
+  ui/                   Streamlit interface: sidebar, chat, styles, state
+samples/                Sample document for one-click demos
+tests/                  pytest suite (loaders, search, engine, model errors, full UI)
+keepalive.py            Wake-up and health check used by the scheduled workflow
+```
 
-**Sidebar controls:**
-- **Clear chat** — wipes conversation history and resets the model's conversation memory, keeps indexed documents intact
-- **Reset all** — wipes everything including the vector store
+---
+
+## ✅ Tests
+
+```bash
+pip install -r requirements-dev.txt
+python -m pytest -q
+```
+
+The suite runs the real app through Streamlit's test runner with a stand-in language model and embedding model, so it needs no API key and no network. It covers file readers (including scanned, damaged and password-protected PDFs), chunking, keyword and hybrid search, removing and replacing documents, refusal when nothing matches, citation handling, rate-limit fallback, offline mode, and the full chat flow. It runs on every push through GitHub Actions.
+
+---
+
+## ⚠️ Limits
+
+- **Scanned PDFs** (pictures of text) need OCR, which is not included yet. The app tells you so.
+- **Language:** the default search model is English. Keyword search still finds Bengali text, and a multilingual model can be set with `EMBEDDING_MODEL`.
+- **Free tier:** Groq's free tier has rate limits. The app falls back to a lighter model and shows a friendly message if both are busy.
+- **Relevance check** is a heuristic. It is tuned to decline clearly unrelated questions, not to replace reading the cited source.
+- Tables and charts inside PDFs may be read imperfectly. Answers are written by a language model, so check important facts against the cited passage.
 
 ---
 
 ## 🛣️ Roadmap
 
-- [ ] Streaming token-by-token responses
-- [ ] Per-document deletion from the index
-- [ ] Docker / `docker-compose` setup
-- [ ] Automated test suite
+- [ ] OCR for scanned PDFs
+- [ ] Multilingual embeddings as the default
+- [ ] Evaluation set for retrieval quality (hit rate, citation accuracy)
+- [ ] Optional per-user saved libraries (off by default)
 
-Contributions and suggestions welcome — open an issue or a PR.
+Suggestions and pull requests are welcome.
 
 ---
 
@@ -284,6 +227,6 @@ MIT — see [LICENSE](LICENSE).
 
 <div align="center">
 
-Built with [Streamlit](https://streamlit.io) · [LangChain](https://www.langchain.com) · [Groq](https://groq.com) · [FAISS](https://github.com/facebookresearch/faiss) · [sentence-transformers](https://www.sbert.net)
+Built with [Streamlit](https://streamlit.io) · [Groq](https://groq.com) · [FAISS](https://github.com/facebookresearch/faiss) · [sentence-transformers](https://www.sbert.net) · [LangChain text splitters](https://python.langchain.com)
 
 </div>
